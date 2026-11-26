@@ -1,0 +1,4 @@
+name: buldee
+config:
+  type: cloud
+  networking: {type: limited, allow_package_managers: true}

@@ -1,0 +1,20 @@
+{
+  "name": "buldee",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "echo static site, functions in api/",
+    "typecheck": "tsc --noEmit"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^1.14.0",
+    "@vercel/blob": "^2.9.0"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.11",
+    "typescript": "^7.0.2"
+  }
+}
