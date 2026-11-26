@@ -1,0 +1,990 @@
+<title>Buldee</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;700;800&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: a single working desk. Left column = job files, right column = skill routing and run. Stacks on phones. */
+:root{
+  --bg:#f3f5f8; --surface:#ffffff; --ink:#152234; --muted:#5b6778; --line:#d9dfe7;
+  --navy:#1f477b; --navy-ink:#ffffff; --amber:#c77d14; --amber-soft:#fbf1e1;
+  --ok:#2a7d4f; --ok-soft:#e5f3ea; --warn:#a2610b; --warn-soft:#fbf0de; --off:#8a94a3; --chip:#eef2f7;
+  --display:"Archivo",system-ui,sans-serif; --body:"IBM Plex Sans",system-ui,sans-serif; --mono:"IBM Plex Mono",ui-monospace,monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#0f151d; --surface:#17202b; --ink:#e6ebf2; --muted:#9aa6b6; --line:#2a3644;
+  --navy:#7fa8e0; --navy-ink:#0f151d; --amber:#e8a346; --amber-soft:#33281a;
+  --ok:#5cc58a; --ok-soft:#183324; --warn:#e8a346; --warn-soft:#33281a; --off:#6c7686; --chip:#1f2a37; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0f151d; --surface:#17202b; --ink:#e6ebf2; --muted:#9aa6b6; --line:#2a3644;
+  --navy:#7fa8e0; --navy-ink:#0f151d; --amber:#e8a346; --amber-soft:#33281a;
+  --ok:#5cc58a; --ok-soft:#183324; --warn:#e8a346; --warn-soft:#33281a; --off:#6c7686; --chip:#1f2a37; color-scheme:dark}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+body{background:var(--bg);color:var(--ink);font-family:var(--body);font-size:15px;line-height:1.5}
+.wrap{max-width:1180px;margin:0 auto;padding-block:20px 48px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+header.top{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:12px;border-bottom:2px solid var(--ink);padding-bottom:14px;margin-bottom:20px}
+.brand h1{font-family:var(--display);font-weight:800;font-size:clamp(24px,4vw,32px);letter-spacing:-.01em;margin:0;text-wrap:balance}
+.brand p{margin:2px 0 0;color:var(--muted);font-size:13px;text-transform:uppercase;letter-spacing:.08em}
+.proto{font-family:var(--mono);font-size:12px;background:var(--amber-soft);color:var(--warn);padding:4px 10px;border-radius:4px}
+.job{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:16px}
+.job label{font-size:12px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted)}
+.job input{font:inherit;font-weight:600;border:1px solid var(--line);background:var(--surface);color:var(--ink);padding:6px 10px;border-radius:6px;min-width:0;flex:1 1 320px}
+.grid{display:grid;grid-template-columns:minmax(0,5fr) minmax(0,7fr);gap:20px}
+@media (max-width:860px){.grid{grid-template-columns:1fr}}
+section.panel{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:18px;min-width:0}
+h2{font-family:var(--display);font-weight:700;font-size:17px;margin:0 0 4px}
+.sub{color:var(--muted);font-size:13px;margin:0 0 14px}
+.drop{border:2px dashed var(--line);border-radius:8px;padding:36px 18px;text-align:center;cursor:pointer;transition:border-color .15s,background .15s}
+.drop:hover,.drop.over,.drop:focus-visible{border-color:var(--navy);background:var(--chip);outline:none}
+.drop strong{display:block;font-weight:600}
+.drop span{font-size:13px;color:var(--muted)}
+.samples span{font-size:12.5px;color:var(--muted);align-self:center}
+.samples button{padding:3px 9px;font-size:12px}
+.actions{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0}
+button{font:inherit;cursor:pointer;border-radius:6px;border:1px solid var(--line);background:var(--surface);color:var(--ink);padding:7px 12px;font-size:13px;font-weight:500}
+button:hover{border-color:var(--navy)}
+button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--navy);outline-offset:2px}
+button.primary{background:var(--navy);color:var(--navy-ink);border-color:var(--navy);font-weight:600}
+button:disabled{opacity:.5;cursor:not-allowed}
+ul.files{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px}
+ul.files li{display:grid;grid-template-columns:minmax(0,1fr) auto auto auto;gap:8px;align-items:center;padding:7px 8px;border:1px solid var(--line);border-radius:6px}
+.fname{font-family:var(--mono);font-size:12.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.fsize{font-family:var(--mono);font-size:11.5px;color:var(--muted);font-variant-numeric:tabular-nums}
+.xdel{border:1px solid transparent;background:none;color:var(--muted);font-size:18px;line-height:1;width:28px;height:28px;border-radius:6px;padding:0;flex:none}
+.xdel:hover,.xdel:focus-visible{color:#b3261e;border-color:var(--line);background:var(--chip)}
+.delask{display:flex;flex-wrap:wrap;align-items:center;gap:8px;font-size:13px}
+.delask .danger{background:#b3261e;border-color:#b3261e;color:#fff}
+.skilltag{font-family:var(--mono);font-size:11.5px;font-weight:500;color:var(--muted);background:var(--chip);border:1px solid var(--line);border-radius:5px;padding:1px 6px}
+.savednote{font-size:13.5px;color:var(--muted);margin:10px 0 0}
+.savednote a{color:var(--navy);font-weight:600}
+select.kind{font:inherit;font-size:12px;border:1px solid var(--line);border-radius:999px;padding:2px 6px;background:var(--chip);color:var(--ink)}
+.empty{color:var(--muted);font-size:13px;padding:10px 0}
+.tally{display:flex;flex-wrap:wrap;gap:6px;margin-top:12px}
+.tally span{font-size:12px;background:var(--chip);border-radius:999px;padding:2px 9px}
+.skills{display:flex;flex-direction:column;gap:10px}
+.skill{border:1px solid var(--line);border-left:4px solid var(--off);border-radius:8px;padding:12px 14px;display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:4px 12px;align-items:start}
+.skill.rec{border-left-color:var(--ok)}
+.skill.next{border-left-color:var(--amber)}
+.skill input[type=checkbox]{width:18px;height:18px;margin-top:3px;accent-color:var(--navy)}
+.skill h3{margin:0;font-family:var(--display);font-size:15px;font-weight:700}
+.skill .slug{font-family:var(--mono);font-size:12px;color:var(--muted);font-weight:400;margin-left:6px}
+.skill p{margin:2px 0 0;font-size:13px;color:var(--muted)}
+.skill .why{color:var(--ink)}
+.pill{font-size:11.5px;font-weight:600;border-radius:999px;padding:2px 9px;white-space:nowrap;text-transform:uppercase;letter-spacing:.05em}
+.pill.rec{background:var(--ok-soft);color:var(--ok)}
+.pill.next{background:var(--warn-soft);color:var(--warn)}
+.pill.off{background:var(--chip);color:var(--off)}
+.needs{grid-column:2 / -1;display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
+.needs span{font-size:12px;border-radius:4px;padding:1px 7px;border:1px solid var(--line)}
+.needs .have{color:var(--ok);border-color:var(--ok)}
+.needs .miss{color:var(--muted);border-style:dashed}
+.chain{font-size:13px;margin:14px 0 4px;color:var(--muted)}
+.chain b{color:var(--ink)}
+.runbar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-top:14px;padding-top:14px;border-top:1px solid var(--line)}
+.runbar .note{font-size:12.5px;color:var(--muted);flex:1 1 220px}
+.log{margin-top:16px;display:flex;flex-direction:column;gap:12px}
+.job-run{border:1px solid var(--line);border-radius:8px;padding:12px 14px}
+.job-run h4{margin:0 0 6px;font-family:var(--display);font-size:14px;display:flex;justify-content:space-between;gap:8px}
+.steps{list-style:none;margin:0;padding:0;font-size:13px;display:flex;flex-direction:column;gap:3px}
+.steps li{display:flex;gap:8px}
+.steps li::before{content:"○";color:var(--off);width:14px;flex:none}
+.steps li.done::before{content:"✓";color:var(--ok)}
+.steps li.active::before{content:"●";color:var(--amber)}
+.steps li.ask::before{content:"?";color:var(--warn);font-weight:700}
+.out{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+.out span{font-family:var(--mono);font-size:12px;background:var(--chip);border-radius:4px;padding:4px 8px}
+.how{margin-top:20px}
+.how ol{margin:8px 0 0;padding-left:20px;font-size:14px;max-width:75ch}
+.how li{margin-bottom:6px}
+.how code{font-family:var(--mono);font-size:12.5px;background:var(--chip);padding:1px 5px;border-radius:3px}
+
+.landing{min-height:72vh;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:26px;text-align:center}
+.wordmark{font-family:var(--display);font-weight:800;font-size:clamp(56px,12vw,96px);letter-spacing:-.03em;margin:0;line-height:1;color:var(--ink)}
+.wordmark i{font-style:normal;color:var(--amber)}
+.bigbox{width:100%;max-width:620px;display:flex;align-items:center;gap:10px;background:var(--surface);border:1px solid var(--line);border-radius:999px;padding:8px 8px 8px 22px;box-shadow:0 1px 6px rgba(20,34,52,.12);cursor:pointer;transition:box-shadow .15s,border-color .15s}
+.bigbox:hover,.bigbox.over,.bigbox:focus-visible{box-shadow:0 2px 14px rgba(20,34,52,.2);border-color:var(--navy);outline:none}
+.bigbox .ph{flex:1;min-width:0;text-align:left;color:var(--muted);font-size:16px;line-height:1.35}
+.bigbox button{border-radius:999px;padding:10px 22px;font-size:15px}
+.landing .samples{justify-content:center}
+.landing .tag{color:var(--muted);font-size:13px;margin:-14px 0 0;line-height:1.6}
+.landing .tag .free{color:var(--ink)}
+.limit{margin:10px 0 0;font-size:13px;color:var(--warn)}
+.limit:empty{display:none}
+.landing .limit{margin:-12px 0 0}
+.who{display:flex;flex-wrap:wrap;align-items:center;gap:10px;font-size:13px;color:var(--muted)}
+.sso{display:flex;flex-direction:column;gap:8px;margin:4px 0 6px}
+.sso button{display:flex;align-items:center;gap:12px;padding:10px 14px;font-size:14.5px;font-weight:600;justify-content:flex-start}
+.sso .mk{width:26px;height:26px;border-radius:6px;display:inline-flex;align-items:center;justify-content:center;font-family:var(--display);font-weight:800;font-size:13px;background:var(--chip);color:var(--ink);flex:none}
+.or{display:flex;align-items:center;gap:10px;color:var(--muted);font-size:12px;margin:6px 0}
+.or::before,.or::after{content:"";flex:1;border-top:1px solid var(--line)}
+.emailrow{display:flex;gap:8px;flex-wrap:wrap}
+.emailrow input{font:inherit;font-size:14px;flex:1 1 200px;min-width:0;border:1px solid var(--line);border-radius:6px;padding:8px 10px;background:var(--surface);color:var(--ink)}
+.fine{font-size:12px;color:var(--muted);margin:12px 0 0}
+.landtop{display:flex;flex-wrap:wrap;justify-content:center;margin-top:-4px;max-width:760px;align-items:center;gap:8px 10px}
+.lt-label{font-size:13px;color:var(--muted);width:100%;text-align:center}
+@media (min-width:760px){.lt-label{width:auto}}
+.lt-btns{display:flex;flex-wrap:wrap;gap:6px;justify-content:center}
+.lt-btns button{display:flex;align-items:center;gap:7px;padding:5px 11px 5px 6px;border-radius:999px;font-size:13px;font-weight:600}
+.lt-btns .mk,.sso .mk{width:22px;height:22px;border-radius:999px;display:inline-flex;align-items:center;justify-content:center;font-family:var(--display);font-weight:800;font-size:11px;background:var(--chip);color:var(--ink);flex:none}
+.lt-line{width:100%;margin:2px 0 0;text-align:center;color:var(--muted);font-size:13.5px}
+.lt-user{display:flex;gap:10px;align-items:center;font-size:13px;color:var(--muted)}
+.reglink{background:none;border:none;padding:0;font:inherit;font-weight:700;color:var(--navy);text-decoration:underline;text-underline-offset:3px;cursor:pointer}
+.regform{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.regform .full{grid-column:1 / -1}
+.regform label{display:flex;flex-direction:column;gap:3px;font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;min-width:0}
+.regform input,.regform select{font:inherit;font-size:14px;text-transform:none;letter-spacing:0;color:var(--ink);background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:7px 9px;min-width:0}
+.regform .chk{flex-direction:row;align-items:center;gap:8px;text-transform:none;letter-spacing:0;font-size:13px;color:var(--ink)}
+.dialog .regerr{color:var(--warn);font-size:13px;margin:0}
+.dialog .regerr:empty{display:none}
+@media (max-width:520px){.regform{grid-template-columns:1fr}}
+.dialog{position:relative}
+.xbtn{position:absolute;top:10px;right:10px;width:34px;height:34px;padding:0;border:none;border-radius:999px;background:transparent;color:var(--muted);font-size:24px;line-height:1;display:flex;align-items:center;justify-content:center}
+.xbtn:hover{background:var(--chip);color:var(--ink)}
+.dialog h2{padding-right:36px}
+.pv-hello h2{font-size:24px;margin:0}
+.pv-grid{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr);gap:20px;margin-top:16px}
+.pv-wide{grid-column:1 / -1}
+@media (max-width:860px){.pv-grid{grid-template-columns:1fr}}
+.pv-plan{display:flex;flex-wrap:wrap;gap:10px;align-items:center;font-size:14px}
+.pv-saved{font-size:13px;color:var(--ok);margin-right:auto;align-self:center}
+.pv-tpl{display:grid;grid-template-columns:minmax(0,260px) minmax(0,1fr);gap:20px;align-items:start}
+@media (max-width:560px){.pv-tpl{grid-template-columns:1fr}}
+.pv-sheet{font-size:6.5px}
+.pv-sheet .lh .lg{width:44px;height:36px;font-size:7px}
+.pv-sheet .slogan{font-size:7px;padding:2px 6px}
+.pv-sheet .addr,.pv-sheet .cname,.pv-sheet .ft{font-size:6px}
+table.proj{width:100%;border-collapse:collapse;font-size:13.5px}
+table.proj th{text-align:left;font-size:11.5px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:500;padding:6px 8px;border-bottom:1px solid var(--line)}
+table.proj td{padding:9px 8px;border-bottom:1px solid var(--line);vertical-align:top}
+table.proj td.mono{font-family:var(--mono);font-size:12px;color:var(--muted)}
+table.proj td:nth-child(2){white-space:nowrap}
+.tw{overflow-x:auto}
+.authmark{align-self:stretch;text-align:left}
+.wordmark.small{font-size:clamp(40px,7vw,64px)}
+.landing.authed{justify-content:flex-start;min-height:80vh}
+.landing.authed .bigbox{margin-top:clamp(40px,14vh,160px)}
+.toolrow{display:flex;flex-wrap:wrap;justify-content:center;gap:14px 28px;max-width:760px}
+.toolrow button{min-width:128px;padding:12px 22px;border-radius:12px;font-family:var(--display);font-weight:700;font-size:16px;background:var(--chip);border:1px solid var(--line)}
+.toolrow button:hover{background:var(--navy);color:var(--navy-ink);border-color:var(--navy)}
+.rg-lh{border-top:1px solid var(--line);padding-top:14px;margin-top:4px}
+.rg-lh h3{font-family:var(--display);font-size:15px;margin:0 0 2px}
+.rg-lh-grid{display:grid;grid-template-columns:minmax(0,1fr) 230px;gap:16px;align-items:start}
+.rg-sheet .lh{grid-template-columns:auto minmax(0,1fr)}
+.rg-sheet .slogan{min-width:0;justify-self:stretch}
+@media (max-width:520px){.rg-lh-grid{grid-template-columns:1fr}.rg-sheet{max-width:200px}}
+.rg-sheet{font-size:6px}
+.rg-sheet .lh .lg{width:36px;height:30px;font-size:6px}
+.rg-sheet .slogan{font-size:6px;padding:2px 4px}
+.rg-sheet .addr,.rg-sheet .cname,.rg-sheet .ft{font-size:5.5px}
+.pcard{display:grid;grid-template-columns:auto minmax(0,1fr);gap:14px 16px;align-items:start;margin-top:8px}
+.pcard .av{width:64px;height:64px;border-radius:999px;background:var(--navy);color:var(--navy-ink);display:flex;align-items:center;justify-content:center;font-family:var(--display);font-weight:800;font-size:24px;overflow:hidden}
+.pcard .av img{width:100%;height:100%;object-fit:contain;background:#fff}
+.pcard h3{margin:0;font-family:var(--display);font-size:20px}
+.pcard .meta{color:var(--muted);font-size:14px;margin:2px 0 0}
+.pcard dl{grid-column:1 / -1;display:grid;grid-template-columns:max-content minmax(0,1fr);gap:6px 16px;margin:0;font-size:14px}
+.pcard dt{color:var(--muted);font-size:12px;text-transform:uppercase;letter-spacing:.06em;padding-top:2px}
+.pcard dd{margin:0;overflow-wrap:anywhere}
+.pcard .acts{grid-column:1 / -1}
+#pvDone{margin:0 0 4px}
+#pvDone:empty{display:none}
+.dropper{border:1.5px dashed var(--line);border-radius:16px;background:var(--surface);min-height:150px;padding:16px;display:flex;flex-direction:column;justify-content:space-between;gap:16px;cursor:pointer;transition:border-color .15s,background .15s}
+.dropper:hover,.dropper:focus-visible,.dropper.over{border-color:var(--navy);background:var(--chip);outline:none}
+.dz-text{color:var(--muted);font-size:15px}
+.dz-bar{display:flex;align-items:center;gap:10px}
+.plus{width:36px;height:36px;border-radius:999px;padding:0;font-size:22px;line-height:1;font-weight:400;display:flex;align-items:center;justify-content:center;border:1px solid var(--line);background:var(--surface);color:var(--ink)}
+.plus:hover{background:var(--navy);color:var(--navy-ink);border-color:var(--navy)}
+.dz-hint{font-size:12.5px;color:var(--muted)}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chips:empty{display:none}
+.chip{display:inline-flex;align-items:center;gap:6px;max-width:100%;background:var(--chip);border:1px solid var(--line);border-radius:8px;padding:5px 6px 5px 10px;font-family:var(--mono);font-size:12px}
+.chip span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+.chip button{border:none;background:none;padding:0 4px;font-size:16px;line-height:1;color:var(--muted)}
+.toolrow.left{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;max-width:none}
+.toolrow.left button{min-width:0;padding:10px 14px;font-size:15px}
+.linkbox{margin-top:12px;display:flex;flex-direction:column;gap:6px}
+.linkbox label{font-size:13px;color:var(--muted)}
+.chip.link{font-family:var(--body)}
+.chip{position:relative;overflow:hidden}
+.chip .bar{position:absolute;left:0;bottom:0;height:3px;background:var(--navy);transition:width .15s linear}
+.chip .st{font-family:var(--body);font-size:11px;color:var(--muted);flex:none}
+.chip.done .st{color:var(--ok,#2e7d32)}
+.xfile{display:flex;flex-wrap:wrap;align-items:center;gap:12px;border:1px solid var(--ok);background:var(--ok-soft);border-radius:10px;padding:12px 14px}
+.xicon{width:44px;height:44px;border-radius:8px;background:var(--ok);color:var(--surface);font-family:var(--mono);font-size:11px;font-weight:600;display:flex;align-items:center;justify-content:center;flex:none}
+.xbody{flex:1 1 220px;min-width:0;display:flex;flex-direction:column;gap:2px;font-size:14px}
+.xbody b{overflow-wrap:anywhere}
+.xbody span{font-size:12.5px;color:var(--muted)}
+.xrow{display:flex;flex-wrap:wrap;align-items:center;gap:10px;justify-content:space-between}
+.xrow .mono{font-family:var(--mono);font-size:12px;overflow-wrap:anywhere;min-width:0;flex:1 1 200px}
+.proj .xrow .mono{white-space:normal;word-break:break-word}
+.proj td{overflow-wrap:anywhere}
+.dlmsg{font-size:12px;color:var(--muted)}
+.gate{border:1px solid var(--amber);background:var(--amber-soft);border-radius:8px;padding:14px;display:flex;flex-direction:column;gap:8px}
+.gate h4{margin:0;font-family:var(--display);font-size:15px}
+.gate p{margin:0;font-size:13.5px}
+.gate form{display:flex;flex-wrap:wrap;gap:8px}
+.gate input{font:inherit;font-size:14px;flex:1 1 220px;min-width:0;border:1px solid var(--line);border-radius:6px;padding:6px 9px;background:var(--surface);color:var(--ink)}
+.linkish{background:none;border:none;padding:0;color:var(--muted);text-decoration:underline;font-size:12px}
+.mini{font-family:var(--display);font-weight:800;font-size:24px;letter-spacing:-.02em;margin:0;cursor:pointer;background:none;border:none;padding:0;color:var(--ink)}
+.mini i{font-style:normal;color:var(--amber)}
+
+.modal{position:fixed;inset:0;background:rgba(10,18,28,.45);display:flex;align-items:center;justify-content:center;padding:16px;z-index:50}
+.dialog{background:var(--surface);color:var(--ink);border:1px solid var(--line);border-radius:12px;max-width:440px;width:100%;max-height:calc(100vh - 32px);overflow:auto;padding:22px;box-shadow:0 10px 40px rgba(0,0,0,.25)}
+.dialog h2{font-size:19px;margin-bottom:6px}
+.dialog p{margin:0 0 16px;color:var(--muted);font-size:14px}
+.dialog .preview{display:flex;align-items:center;justify-content:center;min-height:90px;border:2px dashed var(--line);border-radius:8px;margin-bottom:16px;padding:10px}
+.dialog .preview img{max-height:80px;max-width:100%}
+.dialog .row{display:flex;flex-wrap:wrap;gap:8px;justify-content:flex-end}
+.brand{display:flex;align-items:center;gap:14px}
+.brand .logo{max-height:44px;max-width:160px}
+.brand .addlogo{font-size:12px;padding:3px 9px}
+
+.dialog.wide{max-width:900px;max-height:calc(100vh - 32px);overflow:auto}
+.prof{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.1fr);gap:20px}
+@media (max-width:760px){.prof{grid-template-columns:1fr}}
+.form{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.form .full{grid-column:1 / -1}
+.form label{display:flex;flex-direction:column;gap:3px;font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;min-width:0}
+.form input{font:inherit;font-size:14px;text-transform:none;letter-spacing:0;color:var(--ink);background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:6px 9px;min-width:0}
+.form input[type=color]{padding:2px;height:34px}
+.logo-row{display:flex;align-items:center;gap:10px}
+.logo-row img{max-height:40px;max-width:120px}
+/* letterhead preview: always a white sheet of paper, like the printed template */
+.sheet{--paper:#ffffff;--paper-ink:#1b1b1b;background:var(--paper);color:var(--paper-ink);aspect-ratio:8.5/11;max-width:100%;border:1px solid var(--line);border-radius:4px;box-shadow:0 2px 10px rgba(0,0,0,.12);padding:6% 7%;display:flex;flex-direction:column;font-family:Calibri,Carlito,"IBM Plex Sans",sans-serif;font-size:11px}
+.sheet .lh{display:grid;grid-template-columns:auto 1fr;gap:4px 14px;align-items:start}
+.sheet .lh .lg{grid-row:1 / 3;width:70px;height:56px;display:flex;align-items:center;justify-content:center;border:1px dashed #c9cfd8;color:#8a94a3;font-size:9px;text-align:center}
+.sheet .lh .lg img{max-width:100%;max-height:100%}
+.sheet .lh .lg.has{border:none}
+.sheet .slogan{justify-self:end;font-style:italic;text-transform:uppercase;border-top:1px solid #b9c0ca;border-bottom:1px solid #b9c0ca;padding:4px 10px;font-size:11px;min-width:55%;text-align:center}
+.sheet .addr{font-size:9.5px;color:#1f477b}
+.sheet .cname{font-weight:700;font-size:10px;color:#1b1b1b}
+.sheet .body{flex:1;display:flex;flex-direction:column;gap:6px;padding-top:12%}
+.sheet .body i{display:block;height:5px;background:#eceff3;border-radius:2px}
+.sheet .ft{text-align:center;font-size:9px;display:flex;flex-wrap:wrap;justify-content:center;gap:4px 14px}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+
+<div class="wrap">
+  <main class="landing" id="landing">
+    <div class="authmark" id="authMark" hidden><span class="wordmark small">Buld<i>ee</i></span></div>
+    <h1 class="wordmark" id="bigMark">Buld<i>ee</i></h1>
+    <div class="bigbox" id="bigbox" tabindex="0" role="button" aria-label="Upload job files">
+      <span class="ph">Upload your job and enjoy doing nothing while we do everything for you</span>
+      <button class="primary" type="button" tabindex="-1">Upload</button>
+    </div>
+    <div class="toolrow" id="toolRow" hidden aria-label="Start with a tool">
+      <button data-tool="daskal-takeoff">Take Off</button>
+      <button data-tool="scheduling">Schedule</button>
+      <button data-tool="estimate">Estimate</button>
+      <button data-tool="purchase">Purchase</button>
+    </div>
+    <div class="actions samples" id="samplesRow"><span>Or try a sample:</span><button id="sampleBid">Bid package</button><button id="sampleField">Field day</button></div>
+    <p class="limit" id="landMsg" role="status"></p>
+    <nav class="landtop" id="landTop" aria-label="Log in">
+      <span class="lt-label" id="ltLabel"><button class="reglink" id="regOpen2" type="button">Register</button> or log in with</span>
+      <span class="lt-btns" id="ltBtns">
+        <button data-p="Google"><span class="mk">G</span>Google</button>
+        <button data-p="Apple"><span class="mk">A</span>Apple</button>
+        <button data-p="LinkedIn"><span class="mk">in</span>LinkedIn</button>
+        <button data-p="Salesforce"><span class="mk">S</span>Salesforce</button>
+      </span>
+      <span class="lt-user" id="ltUser" hidden><span id="ltWho"></span><button class="linkish" id="ltProfile">My profile</button><button class="linkish" id="ltOut">Sign out</button></span>
+      <p class="lt-line" id="ltLine">and Try One Project for free up to 4 files (drawings, specs, site photos), <b>30 MB</b> each.</p>
+    </nav>
+  </main>
+  <div id="work" hidden>
+  <header class="top">
+    <div class="brand"><div><button class="mini" id="home" aria-label="Back to start">Buld<i>ee</i></button><p>Daskal LLC</p></div><img class="logo" id="logoImg" alt="Company logo" hidden><button class="addlogo" id="addLogo">Set up company template</button></div>
+    <span class="who"><span id="whoTxt"></span><button class="linkish" id="whoProfile" hidden>My profile</button><button class="linkish" id="signOut" hidden>Sign out</button><span class="proto" id="demoBadge">Free demo · 1 project</span></span>
+  </header>
+
+  <div class="job">
+    <label for="jobName">Job</label>
+    <input id="jobName" value="12-03-2026 Bridgewater-Raritan Middle School Classroom Interior Renovations" placeholder="Job name">
+  </div>
+
+  <div class="grid">
+    <section class="panel" aria-labelledby="filesH">
+      <h2 id="filesH">1. Job files</h2>
+      <p class="sub">Each file is sorted by what it is. Fix any label with its dropdown.</p>
+      <div class="actions"><button id="addMore">Add more files</button><button id="clear">Start over</button></div>
+      <input type="file" id="picker" multiple hidden>
+      <ul class="files" id="files"></ul>
+      <div class="tally" id="tally"></div>
+      <p class="limit" id="limitMsg" role="status"></p>
+    </section>
+
+    <section class="panel" aria-labelledby="skillsH">
+      <h2 id="skillsH">2. Tools picked for this job</h2>
+      <p class="sub">Recommended tools are checked. Uncheck one or check another to override.</p>
+      <div class="skills" id="skills"></div>
+      <p class="chain" id="chain"></p>
+      <div class="runbar">
+        <span class="note" id="runNote"></span>
+        <button class="primary" id="run">Run selected tools</button>
+      </div>
+      <div class="log" id="log"></div>
+    </section>
+  </div>
+
+  <section class="panel how" aria-labelledby="howH">
+    <h2 id="howH">How the real site would work</h2>
+    <ol>
+      <li><b>Upload.</b> Drop up to 4 files, or paste a Google Drive or Dropbox link.</li>
+      <li><b>Sort.</b> Claude reads each file's title block, first pages and sheet names and labels it: drawings, specs, addenda, bid form, takeoff, estimate, schedule, photos or field notes. Labels can be corrected.</li>
+      <li><b>Pick tools.</b> Rules decide which of your skills can run on what's there, and in what order (takeoff → estimate → schedule). You confirm or override.</li>
+      <li><b>Run and download.</b> Each chosen tool runs as a Claude session with your files. Its questions (markup %, start date, crew counts) show up on the page. Buldee then makes one Excel file for the project, with a tab for each tool and your letterhead at the top, ready to download.</li>
+    </ol>
+  </section>
+  </div>
+  <div id="profileView" hidden>
+    <header class="top">
+      <div class="brand"><div><button class="mini" id="pvHome" aria-label="Back to start">Buld<i>ee</i></button><p>Your profile</p></div></div>
+      <span class="who"><button class="primary" id="pvUpload">Upload a job</button><button id="pvOut">Sign out</button></span>
+    </header>
+    <div class="pv-hello"><h2 id="pvHello">Welcome</h2><p class="sub" id="pvVia"></p></div>
+    <div class="pv-grid">
+      <section class="panel" aria-labelledby="pvAccH">
+        <h2 id="pvAccH">Profile</h2>
+        <p class="pv-saved" id="pvDone" role="status"></p>
+        <div class="pcard" id="pvCard"></div>
+        <form class="regform" id="pvForm" hidden>
+          <label>First name<input id="pv-first" autocomplete="given-name"></label>
+          <label>Last name<input id="pv-last" autocomplete="family-name"></label>
+          <label class="full">Company<input id="pv-company" autocomplete="organization"></label>
+          <label>Role<select id="pv-role"><option>Owner / principal</option><option>Estimator</option><option>Project manager</option><option>Superintendent</option><option>Other</option></select></label>
+          <label>Phone<input id="pv-phone" type="tel" autocomplete="tel"></label>
+          <label class="full">Work email<input id="pv-email" type="email" autocomplete="email"></label>
+          <div class="row full"><span class="pv-saved" id="pvSaved" role="status"></span><button type="button" id="pvCancel">Cancel</button><button class="primary">Save changes</button></div>
+        </form>
+      </section>
+      <section class="panel" aria-labelledby="pvPlanH">
+        <h2 id="pvPlanH">Upload project</h2>
+        <p class="sub">Drop drawings, specs and site photos. Up to 4 files, <b>30 MB</b> each.</p>
+        <div class="dropper" id="pvDrop" tabindex="0" role="button" aria-label="Upload project files">
+          <span class="dz-text" id="pvDzText">Drag and drop your job files here</span>
+          <div class="chips" id="pvChips"></div>
+          <div class="dz-bar"><button type="button" class="plus" id="pvPlus" aria-label="Add files">+</button><span class="dz-hint" id="pvPlanTxt"></span></div>
+        </div>
+        <input type="file" id="pvPicker" multiple hidden>
+        <form class="linkbox" id="pvLinkForm">
+          <label for="pvLink">Or take the files from Google Drive or Dropbox</label>
+          <div class="emailrow"><input id="pvLink" type="url" inputmode="url" placeholder="Paste a Google Drive or Dropbox folder or file link"><button>Add from link</button></div>
+        </form>
+        <p class="limit" id="pvMsg" role="status"></p>
+        <div class="pvtools" id="pvTools" hidden>
+          <p class="sub" style="margin:12px 0 8px">What should Buldee do with this project?</p>
+          <div class="toolrow left">
+            <button data-tool="daskal-takeoff">Take Off</button>
+            <button data-tool="scheduling">Schedule</button>
+            <button data-tool="dailylog">Daily Log</button>
+            <button data-tool="estimate">Estimate</button>
+          </div>
+        </div>
+        <span class="pill" id="pvPlanPill" hidden></span>
+      </section>
+      <section class="panel pv-wide" aria-labelledby="pvTplH">
+        <h2 id="pvTplH">Company template</h2>
+        <p class="sub">Your logo, slogan and contact details go on every takeoff, estimate, schedule and daily log.</p>
+        <div class="pv-tpl"><div class="sheet pv-sheet" id="pvSheet"></div><div><p id="pvTplTxt" class="sub"></p><button id="pvTplEdit">Edit company template</button> <button id="pvTplBlank">Download blank Buldee Estimate Template</button></div></div>
+      </section>
+      <section class="panel pv-wide" aria-labelledby="pvProjH">
+        <h2 id="pvProjH">My projects</h2>
+        <p class="sub">Each job and its Excel file, built on the Buldee Estimate Template.</p>
+        <div id="pvProjects"></div>
+      </section>
+    </div>
+  </div>
+</div>
+
+<div class="modal" id="logoModal" role="dialog" aria-modal="true" aria-labelledby="logoH" hidden>
+  <div class="dialog wide">
+    <h2 id="logoH">Set up your company template?</h2>
+    <p>Your files are in. Add your logo, slogan and contact details once, and Buldee puts them on every takeoff, estimate, schedule, daily log and letter it makes, the same way Daskal's letterhead looks.</p>
+    <div class="prof">
+      <div class="form">
+        <label class="full">Logo
+          <span class="logo-row"><button type="button" id="logoChoose">Choose logo</button><img id="pfLogoThumb" alt="" hidden><span id="logoErr" class="sub" style="margin:0"></span></span>
+        </label>
+        <input type="file" id="logoPicker" accept="image/*" hidden>
+        <label class="full">Company name<input id="pf-name" placeholder="Daskal LLC"></label>
+        <label class="full">Slogan<input id="pf-slogan" placeholder="Building for a solid future"></label>
+        <label class="full">Address<input id="pf-addr" placeholder="15 Boonton Ave, Butler NJ 07405"></label>
+        <label>Phone<input id="pf-tel" type="tel" placeholder="973-551-5407"></label>
+        <label>Fax<input id="pf-fax" type="tel" placeholder="optional"></label>
+        <label>Email<input id="pf-email" type="email" placeholder="office@yourcompany.com"></label>
+        <label>Website<input id="pf-web" placeholder="yourcompany.com"></label>
+        <label>License no.<input id="pf-lic" placeholder="optional"></label>
+        <label>Brand color<input id="pf-color" type="color" value="#5b9bd5"></label>
+      </div>
+      <div><div class="sheet" id="sheet" aria-label="Letterhead preview"></div></div>
+    </div>
+    <div class="row" style="margin-top:16px"><button id="logoSkip">Not now</button><button class="primary" id="logoUse">Save company template</button></div>
+  </div>
+</div>
+
+<div class="modal" id="regModal" role="dialog" aria-modal="true" aria-labelledby="regH" hidden>
+  <div class="dialog" style="max-width:640px">
+    <button class="xbtn" id="regX" type="button" aria-label="Close">&times;</button>
+    <h2 id="regH">Register for Buldee</h2>
+    <p>Create your free account to try one project, up to 4 files. Your company details become the letterhead on everything Buldee makes for you.</p>
+    <div class="sso" style="flex-direction:row;flex-wrap:wrap">
+      <button data-p="Google" style="flex:1 1 45%"><span class="mk">G</span>Google</button>
+      <button data-p="Apple" style="flex:1 1 45%"><span class="mk">A</span>Apple</button>
+      <button data-p="LinkedIn" style="flex:1 1 45%"><span class="mk">in</span>LinkedIn</button>
+      <button data-p="Salesforce" style="flex:1 1 45%"><span class="mk">S</span>Salesforce</button>
+    </div>
+    <div class="or">or register with your email</div>
+    <form class="regform" id="regForm" novalidate>
+      <label>First name<input id="rg-first" autocomplete="given-name" required></label>
+      <label>Last name<input id="rg-last" autocomplete="family-name" required></label>
+      <label class="full">Company<input id="rg-company" autocomplete="organization" required></label>
+      <label>Role<select id="rg-role"><option>Owner / principal</option><option>Estimator</option><option>Project manager</option><option>Superintendent</option><option>Other</option></select></label>
+      <label>Your phone<input id="rg-phone" type="tel" autocomplete="tel"></label>
+      <label class="full">Work email<input id="rg-email" type="email" autocomplete="email" required></label>
+      <label class="full">Password<input id="rg-pass" type="password" autocomplete="new-password" minlength="8" required placeholder="At least 8 characters"></label>
+      <div class="full rg-lh">
+        <h3>Company letterhead</h3>
+        <p class="sub" style="margin:0 0 10px">Buldee builds your letterhead from these and puts it on your takeoffs, estimates, schedules and logs.</p>
+        <div class="rg-lh-grid">
+          <div class="regform">
+            <label class="full">Company logo
+              <span class="logo-row"><button type="button" id="rgLogoBtn">Upload logo</button><img id="rgLogoThumb" alt="" hidden><span id="rgLogoErr" class="sub" style="margin:0"></span></span>
+            </label>
+            <input type="file" id="rgLogoPick" accept="image/*" hidden>
+            <label class="full">Company address<input id="rg-addr" autocomplete="street-address" placeholder="Street, city, state, ZIP"></label>
+            <label>Company phone<input id="rg-ctel" type="tel" placeholder="Main office line"></label>
+            <label>Fax<input id="rg-fax" type="tel" placeholder="Optional"></label>
+            <label>Company email<input id="rg-cemail" type="email" placeholder="office@company.com"></label>
+            <label>Website<input id="rg-web" placeholder="company.com"></label>
+            <label class="full">Slogan<input id="rg-slogan" placeholder="Optional"></label>
+          </div>
+          <div class="sheet rg-sheet" id="rgSheet" aria-label="Letterhead preview"></div>
+        </div>
+      </div>
+      <label class="full chk"><input type="checkbox" id="rg-terms" required> I agree to the Terms and Privacy Policy</label>
+      <p class="regerr full" id="regErr" role="alert"></p>
+      <div class="row full"><button type="button" id="regCancel">Cancel</button><button class="primary" id="regSubmit">Create free account</button></div>
+    </form>
+  </div>
+</div>
+
+<div class="modal" id="signModal" role="dialog" aria-modal="true" aria-labelledby="signH" hidden>
+  <div class="dialog">
+    <button class="xbtn" id="signX" type="button" aria-label="Close">&times;</button>
+    <h2 id="signH">Sign in to start your free project</h2>
+    <p>Registering is free and takes one click. Your free project is saved to your account.</p>
+    <div class="sso">
+      <button data-p="Google"><span class="mk">G</span>Continue with Google</button>
+      <button data-p="Apple"><span class="mk">A</span>Continue with Apple</button>
+      <button data-p="LinkedIn"><span class="mk">in</span>Continue with LinkedIn</button>
+      <button data-p="Salesforce"><span class="mk">S</span>Continue with Salesforce</button>
+    </div>
+    <div class="or">or</div>
+    <form class="emailrow" id="emailSign"><input type="email" id="signEmail" required placeholder="you@company.com" aria-label="Email"><button class="primary">Email me a code</button></form>
+    <p class="fine">New here? <button class="reglink" id="toReg" type="button">Register</button>. Prototype: no real sign-in happens. Picking an option pretends you're signed in.</p>
+    <div class="row" style="margin-top:12px"><button id="signCancel">Cancel</button></div>
+  </div>
+</div>
+
+<div class="modal" id="gateModal" role="dialog" aria-modal="true" aria-labelledby="gateH" hidden>
+  <div class="dialog">
+    <h2 id="gateH">You've used your free project</h2>
+    <p>Each visitor can run one project for free. Leave your email and we'll set you up to run more jobs on Buldee.</p>
+    <div class="gate" id="gateBox2"></div>
+    <div class="row" style="margin-top:14px"><button class="linkish" id="resetDemo2">Reset demo (prototype only)</button><button id="gateClose">Close</button></div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js"></script>
+<script>
+const KINDS = {
+  drawings:"Drawings", specs:"Specifications", addenda:"Addendum", bidform:"Bid form / scope",
+  projinfo:"Project info", takeoff:"Takeoff (.xlsx)", estimate:"Estimate (.xlsx)", template:"Estimating template",
+  schedule:"Schedule export", photos:"Site photo", notes:"Field notes / payroll", other:"Other"
+};
+const SKILLS = [
+  {id:"daskal-takeoff", name:"Quantity takeoff", what:"Quantities by CSI division on the Buldee Estimate Template, with Walls, Flooring and ACT tabs. No prices.",
+   needs:[["drawings","Drawings"],["specs","Specs"],["addenda","Addenda",true],["bidform","Bid form",true]],
+   out:["Summary","Walls","Flooring","ACT"],
+   skill:"/daskal-takeoff", steps:["Read Project Info, bid form and scope of work","Map drawing sheets and apply addenda","Div 01 rows (office, site management, allowance) and bond","Walls by wall type","Flooring and ceilings by type","Doors by opening, specialties and MEP counts","Fill the Buldee Estimate Template (quantities only, no prices)"]},
+  {id:"estimate", name:"Bid estimate", what:"Prices the takeoff on the same Buldee Estimate Template, from sub quotes and market prices.",
+   needs:[["takeoff","Takeoff"]], ask:"Markup % to use?",
+   out:["Summary"],
+   steps:["Load takeoff","Ask: markup %","Find prices in past bids (last 2 years, NJ)","Fill price and price basis per line","Compare cost per SF with past bids"]},
+  {id:"scheduling", name:"Construction schedule", what:"CPM Gantt with critical path, submittals, lead times, RFI and CO forms.",
+   needs:[["drawings","Drawings"],["specs","Specs"],["takeoff","Takeoff",true]], alt:"schedule",
+   out:["Schedule","Submittals"],
+   steps:["Read completion dates from specs","Size durations from takeoff quantities","Run CPM (working days, holidays)","List submittals and lead times"]},
+  {id:"purchase", name:"Purchasing", what:"Buyout list and purchase orders by trade and vendor, from the takeoff or estimate quantities.",
+   needs:[["takeoff","Takeoff"],["estimate","Estimate",true]], newtool:true,
+   out:["Buyout Log","Purchase Orders"],
+   steps:["Load takeoff and estimate quantities","Group materials by trade and vendor","Add lead times and order-by dates","Draft purchase orders"]},
+  {id:"dailylog", name:"Daily log", what:"Site daily log on Daskal letterhead, with weather and open RFIs/PCOs.",
+   needs:[["photos","Site photos"],["notes","Field notes",true]], ask:"Crew, work performed, deliveries…",
+   out:["Daily Log","Open RFIs & PCOs"],
+   steps:["Fill project info and weather","Ask remaining fields one at a time","Build supplementary sheet (open RFIs, PCOs)"]}
+];
+
+function classify(name){
+  const n = name.toLowerCase();
+  const ext = n.split(".").pop();
+  if (["jpg","jpeg","png","heic","webp"].includes(ext)) return "photos";
+  if (/addend/.test(n)) return "addenda";
+  if (/takeoff|take-off|take off/.test(n) && ["xlsx","xls","xlsm"].includes(ext)) return "takeoff";
+  if (/estimating template/.test(n)) return "template";
+  if (/estimate|bid summary/.test(n) && ["xlsx","xls","xlsm"].includes(ext)) return "estimate";
+  if (/project info/.test(n)) return "projinfo";
+  if (/bid form|proposal form|scope of work/.test(n)) return "bidform";
+  if (/spec|project manual|division \d|section \d/.test(n)) return "specs";
+  if (/schedule|gantt|redteam|look.?ahead|twla/.test(n) && !/door|finish|fixture|panel/.test(n)) return "schedule";
+  if (/daily|payroll|field|notes|timesheet/.test(n)) return "notes";
+  if (/(^|[^a-z])(a|s|m|e|p|fa|fp|c|t|l)-?\d{2,3}|plan|drawing|elevation|section|sheet|dwg|rcp/.test(n) || ext==="dwg") return "drawings";
+  return "other";
+}
+
+const SAMPLES = {
+  bid:[["A-101 First Floor Plan.pdf",4.2e6],["A-201 Reflected Ceiling Plan.pdf",3.1e6],["Specifications - Div 09 Finishes.pdf",7.8e6],["Existing classroom photo.jpg",2.4e6]],
+  field:[["IMG_4410.jpg",2.9e6],["IMG_4411.jpg",3.1e6],["IMG_4415.jpg",2.7e6],["Field notes 11-25.txt",0.01e6]]
+};
+const MAX_FILES=4, MAX_BYTES=30*1024*1024;
+
+let files = []; let view = null;
+const $ = s => document.querySelector(s);
+const fmt = b => b>=1e6 ? (b/1e6).toFixed(1)+" MB" : Math.max(1,Math.round(b/1e3))+" KB";
+
+let demoUsed=false, isSample=false;
+try{ demoUsed=localStorage.getItem("buldee-demo-used")==="1"; }catch(e){}
+function gateHTML(){ return `<h4>Want to run more projects?</h4><p>Leave your email and we'll get you set up.</p><form class="gateForm"><input type="email" required placeholder="you@company.com" aria-label="Email"><button class="primary">Get more projects</button></form>`; }
+function wireGate(el){ el.innerHTML=gateHTML(); el.querySelector("form").addEventListener("submit",e=>{ e.preventDefault(); const v=e.target.querySelector("input").value; el.innerHTML=`<h4>Thanks.</h4><p>We'll email ${esc(v)} about more projects. (Prototype: nothing was sent.)</p>`; }); }
+let user=null, pending=null;
+try{ user=JSON.parse(localStorage.getItem("buldee-user")||"null"); }catch(e){}
+function showUser(){ const a=!!user; $("#landing").classList.toggle("authed",a); $("#authMark").hidden=!a; $("#bigMark").hidden=a; $("#toolRow").hidden=!a; $("#samplesRow").hidden=a; $("#ltLine").innerHTML=a?"Try One Project for free up to 4 files (drawings, specs, site photos), <b>30 MB</b> each.":"and Try One Project for free up to 4 files (drawings, specs, site photos), <b>30 MB</b> each."; $("#ltBtns").hidden=!!user; $("#ltLabel").hidden=!!user; $("#ltUser").hidden=!user; $("#ltWho").textContent=user?(user.name?`Signed in as ${user.name}`:`Signed in with ${user.via}`):""; $("#whoTxt").textContent=user?`Signed in with ${user.via}`:""; $("#signOut").hidden=!user; $("#whoProfile").hidden=!user; }
+function signIn(via,name,details){ user=Object.assign({via,name},details||{}); $("#regModal").hidden=true; try{localStorage.setItem("buldee-user",JSON.stringify(user));}catch(e){} $("#signModal").hidden=true; showUser(); if(pending){ const p=pending; pending=null; addFiles(p,false); } else openProfile(); }
+function updateBadge(){ $("#demoBadge").textContent = isSample ? "Sample project · free" : demoUsed ? "Free project used" : "Free demo · 1 project"; }
+function addFiles(list, sample){ if(view==="profile"){ view=null; try{ if(location.hash) history.replaceState(null,"",location.pathname+location.search); }catch(e){} } if(!files.length){ if(!sample && !user){ pending=list; $("#signModal").hidden=false; return; } if(!sample && demoUsed){ wireGate($("#gateBox2")); $("#gateModal").hidden=false; return; } isSample=!!sample; if(!sample&&list.length){ const n=String(list[0][0]||"").replace(/\.[a-z0-9]{2,5}$/i,"").split(/\s[-–]\s/)[0].replace(/[_]+/g," ").trim(); $("#jobName").value=n||"New job"; } }
+  const first=!files.length; const notes=[];
+  const big=list.filter(([n,sz])=>sz>MAX_BYTES); if(big.length) notes.push(`${big.map(b=>b[0]).join(", ")} ${big.length>1?"are":"is"} over 30 MB and ${big.length>1?"were":"was"} not added.`);
+  let ok=list.filter(([n,sz])=>sz<=MAX_BYTES); const room=MAX_FILES-files.length;
+  if(ok.length>room){ notes.push(`A job can have up to ${MAX_FILES} files. ${ok.length-Math.max(room,0)} file${ok.length-room>1?"s were":" was"} left out.`); ok=ok.slice(0,Math.max(room,0)); }
+  const msg=notes.join(" "); $("#limitMsg").textContent=msg; $("#landMsg").textContent=files.length||ok.length?"":msg;
+  if(!ok.length && !files.length){ return; }
+  list=ok; list.forEach(([name,size]) => files.push({name,size,kind:classify(name)})); render(); updateBadge(); if(first && list.length && !profile && !logoAsked){ logoAsked=true; openLogo(); } }
+
+function have(k){ return files.some(f=>f.kind===k); }
+
+function route(){
+  // Decide status for each skill: rec (recommended now), next (can run after another), off
+  const r = {};
+  const plans = have("drawings") || have("specs");
+  const tk = have("takeoff");
+  const field = have("photos") || have("notes");
+  r["daskal-takeoff"] = plans && !tk ? ["rec","Drawings and specs are here and there is no takeoff yet."]
+                      : plans && tk ? ["off","A takeoff is already in the files."]
+                      : ["off","Needs drawings or specs."];
+  r["estimate"] = tk ? ["rec","A takeoff is here and has no prices yet."]
+                : plans ? ["next","Runs after the takeoff is built."] : ["off","Needs a takeoff."];
+  r["scheduling"] = have("schedule") && !plans ? ["rec","A schedule export is here; it can be rebuilt as an interactive Gantt."]
+                  : plans ? ["next","Best after the takeoff, so durations come from real quantities."]
+                  : ["off","Needs drawings and specs, or a schedule export."];
+  r["purchase"] = have("estimate") ? ["rec","An estimate is here, ready to buy out."] : have("takeoff") ? ["next","Runs after the estimate, or straight from the takeoff."] : (have("drawings")||have("specs")) ? ["next","Runs after the takeoff and estimate."] : ["off","Needs a takeoff or estimate."];
+  r["dailylog"] = field ? ["rec","Site photos or field notes are here."] : ["off","Needs site photos or field notes."];
+  return r;
+}
+
+let picked = new Set(); let manual = false; let preTool = null;
+
+function render(){
+  const am=$("#addMore"); if(am){ am.disabled=files.length>=MAX_FILES; am.textContent=files.length>=MAX_FILES?"4 of 4 files added":"Add more files"; }
+  $("#landing").hidden = view==="profile" || files.length>0; $("#work").hidden = view==="profile" || files.length===0; $("#profileView").hidden = view!=="profile";
+  const ul = $("#files"); ul.innerHTML = "";
+  if (!files.length) ul.innerHTML = '<li class="empty" style="border:none">No files yet. Drop some, or load a sample above.</li>';
+  files.forEach((f,i)=>{
+    const li = document.createElement("li");
+    const opts = Object.entries(KINDS).map(([k,v])=>`<option value="${k}" ${k===f.kind?"selected":""}>${v}</option>`).join("");
+    li.innerHTML = `<span class="fname" title="${f.name.replace(/"/g,"&quot;")}"></span><span class="fsize">${fmt(f.size)}</span><select class="kind" id="kind-${i}" aria-label="File type">${opts}</select><button type="button" class="xdel" aria-label="Delete ${f.name.replace(/"/g,"&quot;")}" title="Delete file">&times;</button>`;
+    li.querySelector(".fname").textContent = f.name;
+    li.querySelector("select").addEventListener("change",e=>{ f.kind=e.target.value; manual=false; render(); });
+    li.querySelector(".xdel").onclick=()=>{ files.splice(i,1); manual=false; if(typeof route==="function") route(); render(); };
+    ul.appendChild(li);
+  });
+  const counts = {}; files.forEach(f=>counts[f.kind]=(counts[f.kind]||0)+1);
+  $("#tally").innerHTML = `<span><b>${files.length} of ${MAX_FILES} files</b></span>` + Object.entries(counts).map(([k,c])=>`<span>${c} × ${KINDS[k]}</span>`).join("");
+
+  const r = route();
+  if (!manual) picked = new Set(SKILLS.filter(s=>r[s.id][0]==="rec").map(s=>s.id));
+  if (preTool && files.length){ manual=true; picked=new Set([preTool]); preTool=null; setTimeout(run,0); }
+  const box = $("#skills"); box.innerHTML = "";
+  SKILLS.forEach(s=>{
+    const [st,why] = r[s.id];
+    const d = document.createElement("div");
+    d.className = "skill "+st;
+    const label = st==="rec"?"Recommended":st==="next"?"Next step":"Not now";
+    const needs = s.needs.map(([k,l,opt])=>`<span class="${have(k)?"have":"miss"}">${have(k)?"✓ ":""}${l}${opt?" (optional)":""}</span>`).join("");
+    d.innerHTML = `<input type="checkbox" id="pick-${s.id}" ${picked.has(s.id)?"checked":""} aria-label="Run ${s.name}">
+      <div><h3>${s.name}<span class="slug">${s.id}</span></h3><p>${s.what}</p><p class="why">${why}</p></div>
+      <span class="pill ${st}">${label}</span><div class="needs">${needs}</div>`;
+    d.querySelector("input").addEventListener("change",e=>{ manual=true; e.target.checked?picked.add(s.id):picked.delete(s.id); updateRunBar(); });
+    box.appendChild(d);
+  });
+  const order = SKILLS.filter(s=>r[s.id][0]!=="off").map(s=>s.name);
+  $("#chain").innerHTML = order.length>1 ? "Suggested order: <b>"+order.join(" → ")+"</b>" : "";
+  updateRunBar();
+}
+
+function updateRunBar(){
+  const n = picked.size;
+  $("#run").disabled = !n;
+  $("#runNote").textContent = n ? `${n} tool${n>1?"s":""} will run in order. You'll be asked for anything the files can't answer.` : "Pick at least one tool.";
+}
+
+const sleep = ms => new Promise(r=>setTimeout(r,ms));
+async function run(){
+  const job = $("#jobName").value.replace(/^\d{2}-\d{2}-\d{4}\s*/,"") || "Job";
+  const log = $("#log"); log.innerHTML = "";
+  $("#run").disabled = true;
+  for (const s of SKILLS.filter(s=>picked.has(s.id))){
+    const card = document.createElement("div"); card.className="job-run";
+    card.innerHTML = `<h4><span>${s.name}${s.skill?` <code class="skilltag">${s.skill}</code>`:""}</span><span class="pill next">Running</span></h4><ul class="steps">${s.steps.map(t=>`<li>${t}</li>`).join("")}</ul>`;
+    log.appendChild(card);
+    const lis = card.querySelectorAll("li");
+    for (const li of lis){
+      li.className = /^Ask/.test(li.textContent) ? "ask" : "active";
+      await sleep(/^Ask/.test(li.textContent)?900:420);
+      li.className = "done";
+    }
+    const pill = card.querySelector(".pill"); pill.className="pill rec"; pill.textContent="Done (simulated)";
+    const out = document.createElement("div"); out.className="out";
+    out.innerHTML = "<span>Tabs: "+s.out.map(esc).join(", ")+"</span>" + (profile?`<span>Branded: ${esc(profile.name||"your company")} letterhead</span>`:"");
+    card.appendChild(out);
+  }
+  const ran=SKILLS.filter(s=>picked.has(s.id)); const xname=`${job} - Buldee Estimate Template.xlsx`;
+  const xf=document.createElement("div"); xf.className="xfile";
+  xf.innerHTML=`<div class="xicon">XLSX</div><div class="xbody"><b>${esc(xname)}</b><span>One Excel file on the Buldee Estimate Template, ${new Set(ran.flatMap(s=>s.out)).size} tabs: ${esc([...new Set(ran.flatMap(s=>s.out))].join(", "))}${profile?` · ${esc(profile.name||"your")} letterhead on every tab`:""}</span></div><button class="primary dlx" type="button">Download</button>`;
+  log.appendChild(xf);
+  const rec={job:$("#jobName").value, date:new Date().toISOString().slice(0,10), sample:isSample, ids:ran.map(s=>s.id), tools:ran.map(s=>s.name), outs:[xname]};
+  xf.querySelector(".dlx").onclick=e=>downloadProject(rec,e.target);
+  const saved=document.createElement("p"); saved.className="savednote"; saved.innerHTML='&#10003; Added to My projects with a Download button. <a href="#profile">Go to My projects</a>'; log.appendChild(saved);
+  try{ const pr=JSON.parse(localStorage.getItem("buldee-projects")||"[]"); pr.unshift(rec); localStorage.setItem("buldee-projects",JSON.stringify(pr.slice(0,50))); }catch(e){}
+  if(!isSample && !demoUsed){
+    demoUsed=true; try{localStorage.setItem("buldee-demo-used","1");}catch(e){}
+    const g=document.createElement("div"); g.className="gate"; log.appendChild(g); wireGate(g);
+    g.insertAdjacentHTML("afterbegin",'<p><b>That was your free project.</b> Your Excel file above is yours to download.</p>');
+  }
+  updateBadge();
+  updateRunBar();
+}
+
+const bb=$("#bigbox");
+bb.addEventListener("click",()=>$("#picker").click());
+bb.addEventListener("keydown",e=>{ if(e.key==="Enter"||e.key===" "){e.preventDefault();$("#picker").click();} });
+$("#addMore").onclick=()=>$("#picker").click();
+$("#picker").addEventListener("change",e=>{ addFiles([...e.target.files].map(f=>[f.name,f.size])); e.target.value=""; });
+["dragover","dragenter"].forEach(t=>document.addEventListener(t,e=>{e.preventDefault();bb.classList.add("over");}));
+["dragleave","drop"].forEach(t=>document.addEventListener(t,e=>{e.preventDefault();bb.classList.remove("over");}));
+document.addEventListener("drop",e=>{ if(!(e.dataTransfer&&e.dataTransfer.files.length)) return; if(view==="profile") pvStage([...e.dataTransfer.files]); else addFiles([...e.dataTransfer.files].map(f=>[f.name,f.size])); });
+$("#home").onclick=()=>{$("#limitMsg").textContent="";$("#landMsg").textContent="";files=[];manual=false;$("#log").innerHTML="";render();};
+$("#sampleBid").onclick=()=>{files=[];manual=false;$("#jobName").value="12-03-2026 Bridgewater-Raritan Middle School Classroom Interior Renovations";addFiles(SAMPLES.bid,true);$("#log").innerHTML="";};
+$("#sampleField").onclick=()=>{files=[];manual=false;$("#jobName").value="Wallington Municipal";addFiles(SAMPLES.field,true);$("#log").innerHTML="";};
+document.querySelectorAll(".sso button, .lt-btns button").forEach(b=>b.onclick=()=>signIn(b.dataset.p));
+$("#emailSign").addEventListener("submit",e=>{ e.preventDefault(); signIn("email ("+$("#signEmail").value+")"); });
+$("#toReg").onclick=()=>{ $("#signModal").hidden=true; $("#regErr").textContent=""; $("#regModal").hidden=false; $("#rg-first").focus(); };
+$("#regX").onclick=()=>{ pending=null; $("#regModal").hidden=true; };
+$("#signX").onclick=()=>{ pending=null; $("#signModal").hidden=true; };
+document.addEventListener("keydown",e=>{ if(e.key==="Escape"){ ["regModal","signModal"].forEach(id=>{ if(!$("#"+id).hidden){ pending=null; $("#"+id).hidden=true; } }); } });
+$("#regOpen2").onclick=()=>{ $("#regErr").textContent=""; $("#regModal").hidden=false; $("#rg-first").focus(); };
+$("#regCancel").onclick=()=>{ pending=null; $("#regModal").hidden=true; };
+$("#regForm").addEventListener("submit",e=>{ e.preventDefault();
+  const v=id=>$("#"+id).value.trim(); const miss=[];
+  if(!v("rg-first")) miss.push("first name"); if(!v("rg-last")) miss.push("last name"); if(!v("rg-company")) miss.push("company");
+  if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(v("rg-email"))) miss.push("a valid work email");
+  if($("#rg-pass").value.length<8) miss.push("a password of at least 8 characters");
+  if(!v("rg-addr")) miss.push("company address"); if(!v("rg-ctel")) miss.push("company phone");
+  if(!$("#rg-terms").checked) miss.push("agreement to the Terms");
+  if(miss.length){ $("#regErr").textContent="Please add "+miss.join(", ")+"."; return; }
+  profile=Object.assign({color:"#5b9bd5"},profile||{},rgDraft()); try{localStorage.setItem("conny-profile",JSON.stringify(profile));}catch(e){} showLogo();
+  signIn("email", v("rg-first")+" "+v("rg-last"), {first:v("rg-first"),last:v("rg-last"),company:v("rg-company"),role:$("#rg-role").value,phone:v("rg-phone"),email:v("rg-email")}); });
+$("#ltOut").onclick=()=>{ user=null; try{localStorage.removeItem("buldee-user");}catch(e){} showUser(); };
+$("#signCancel").onclick=()=>{ pending=null; $("#signModal").hidden=true; };
+$("#signOut").onclick=()=>{ user=null; try{localStorage.removeItem("buldee-user");}catch(e){} showUser(); files=[]; $("#log").innerHTML=""; render(); };
+showUser();
+$("#gateClose").onclick=()=>$("#gateModal").hidden=true;
+$("#resetDemo2").onclick=()=>{ demoUsed=false; try{localStorage.removeItem("buldee-demo-used");}catch(e){} $("#gateModal").hidden=true; updateBadge(); };
+$("#gateModal").addEventListener("click",e=>{ if(e.target.id==="gateModal") e.target.hidden=true; });
+$("#clear").onclick=()=>{$("#limitMsg").textContent="";$("#landMsg").textContent="";files=[];manual=false;$("#log").innerHTML="";render();};
+$("#run").onclick=run;
+
+
+const PF=["name","slogan","addr","tel","fax","email","web","lic","color"];
+let profile=null, logoAsked=false, draft={};
+const lm=$("#logoModal");
+const esc=t=>String(t||"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+function sheetHTML(d){
+  d=d||{}; const c=d.color||"#5b9bd5";
+  const ft=[d.tel&&"TEL: "+d.tel,d.fax&&"FAX: "+d.fax,d.email&&"email: "+d.email,d.web&&d.web,d.lic&&"Lic. "+d.lic].filter(Boolean);
+  return `<div class="lh"><div class="lg ${d.logo?"has":""}">${d.logo?`<img src="${d.logo}" alt="">`:"Your logo"}</div>
+    <div class="slogan" style="color:${c}">${esc(d.slogan)||"Your slogan"}</div>
+    <div class="addr">${d.name?`<span class="cname">${esc(d.name)}</span> · `:""}${esc(d.addr)||"Company address"}</div></div>
+    <div class="body">${"<i></i>".repeat(9)}<i style="width:60%"></i></div>
+    <div class="ft" style="color:${c}">${ft.length?ft.map(x=>`<span>${esc(x)}</span>`).join(""):"<span>Phone · Fax · Email · Website</span>"}</div>`;
+}
+function drawSheet(){ $("#sheet").innerHTML=sheetHTML(draft); }
+function openLogo(){
+  draft=Object.assign({color:"#5b9bd5"}, user&&!profile?{name:user.company||"",email:user.email||"",tel:user.phone||""}:{}, profile||{});
+  PF.forEach(k=>{ $("#pf-"+k).value=draft[k]||(k==="color"?"#5b9bd5":""); });
+  $("#pfLogoThumb").hidden=!draft.logo; if(draft.logo) $("#pfLogoThumb").src=draft.logo;
+  $("#logoErr").textContent=""; drawSheet(); lm.hidden=false; $("#logoChoose").focus();
+}
+function closeLogo(){ lm.hidden=true; }
+function showLogo(){
+  const im=$("#logoImg");
+  if(profile&&profile.logo){ im.src=profile.logo; im.hidden=false; } else im.hidden=true;
+  $("#addLogo").textContent=profile?"Edit company template":"Set up company template";
+  const sub=document.querySelector(".brand p"); if(sub) sub.textContent=(profile&&profile.name)||"Daskal LLC";
+}
+PF.forEach(k=>$("#pf-"+k).addEventListener("input",e=>{ draft[k]=e.target.value; drawSheet(); }));
+$("#logoChoose").onclick=()=>$("#logoPicker").click();
+$("#logoPicker").addEventListener("change",e=>{ const f=e.target.files[0]; e.target.value=""; if(!f) return;
+  if(!/^image\//.test(f.type)){ $("#logoErr").textContent="That file is not an image. Choose a PNG, JPG or SVG."; return; }
+  $("#logoErr").textContent="";
+  const r=new FileReader(); r.onload=()=>{ draft.logo=r.result; $("#pfLogoThumb").src=draft.logo; $("#pfLogoThumb").hidden=false; drawSheet(); }; r.readAsDataURL(f); });
+$("#logoUse").onclick=()=>{ profile=Object.assign({},draft); try{localStorage.setItem("conny-profile",JSON.stringify(profile));}catch(e){} showLogo(); closeLogo(); };
+$("#logoSkip").onclick=closeLogo;
+$("#addLogo").onclick=openLogo;
+lm.addEventListener("click",e=>{ if(e.target===lm) closeLogo(); });
+document.addEventListener("keydown",e=>{ if(e.key==="Escape"&&!lm.hidden) closeLogo(); });
+try{ profile=JSON.parse(localStorage.getItem("conny-profile")||"null"); }catch(e){ profile=null; }
+showLogo();
+
+function cardHTML(){
+  const u=user||{}, c=profile||{};
+  const nm=[u.first,u.last].filter(Boolean).join(" ")||u.name||"Your name";
+  const ini=nm.split(/\s+/).map(w=>w[0]||"").join("").slice(0,2).toUpperCase()||"B";
+  const rows=[["Email",u.email],["Phone",u.phone],["Signed in with",u.via==="email"?"Email and password":u.via],["Company address",c.addr],["Company phone",c.tel],["Company email",c.email],["Website",c.web]].filter(r=>r[1]);
+  return `<div class="av">${c.logo?`<img src="${c.logo}" alt="Company logo">`:esc(ini)}</div>
+    <div><h3>${esc(nm)}</h3><p class="meta">${[u.role,u.company||c.name].filter(Boolean).map(esc).join(" · ")||"Add your role and company"}</p></div>
+    <dl>${rows.map(r=>`<dt>${r[0]}</dt><dd>${esc(r[1])}</dd>`).join("")}</dl>
+    <div class="acts"><button id="pvEdit">Edit profile</button></div>`;
+}
+function setEdit(on){ $("#pvForm").hidden=!on; $("#pvCard").hidden=on; if(on){ $("#pvDone").textContent=""; $("#pv-first").focus(); } }
+function fillProfile(){
+  if(!user) return;
+  const nm=[user.first,user.last].filter(Boolean).join(" ")||user.name||"";
+  $("#pvHello").textContent = nm ? `Welcome, ${user.first||nm}` : "Welcome to Buldee";
+  $("#pvVia").textContent = user.via==="email" ? `Registered with ${user.email||"email"}` : `Signed in with ${user.via}`;
+  [["first","first"],["last","last"],["company","company"],["phone","phone"],["email","email"]].forEach(([k,id])=>$("#pv-"+id).value=user[k]||"");
+  if(user.role) $("#pv-role").value=user.role;
+  $("#pvSaved").textContent="";
+  $("#pvCard").innerHTML=cardHTML(); $("#pvEdit").onclick=()=>setEdit(true); setEdit(!(user.first||user.company));
+  $("#pvPlanPill").className="pill "+(demoUsed?"next":"rec"); $("#pvPlanPill").textContent=demoUsed?"Free project used":"1 free project left";
+  $("#pvPlanTxt").textContent=demoUsed?"You have used your free project.":"1 free project left";
+  $("#pvSheet").innerHTML=sheetHTML(profile||{});
+  $("#pvTplTxt").textContent = profile ? `Saved for ${profile.name||"your company"}.` : "Not set up yet. Add your logo and contact details so they go on your outputs.";
+  $("#pvTplEdit").textContent = profile ? "Edit company template" : "Set up company template";
+  let pr=[]; try{ pr=JSON.parse(localStorage.getItem("buldee-projects")||"[]"); }catch(e){}
+  $("#pvProjects").innerHTML = pr.length ? `<div class="tw"><table class="proj"><thead><tr><th>Job name</th><th>Excel file</th></tr></thead><tbody>${pr.map((x,i)=>`<tr><td>${esc(x.job)}${x.sample?' <span class="pill off">Sample</span>':""}<div class="sub" style="margin:2px 0 0">${esc(x.date)} · ${(x.tools||[]).map(esc).join(", ")}</div></td><td><div class="xrow"><span class="mono">${esc((x.outs||[])[0]||"")}</span><button class="primary dlp" data-i="${i}" type="button">Download</button><button class="xdel pdel" data-i="${i}" type="button" aria-label="Delete ${esc(x.job)}" title="Delete project">&times;</button></div></td></tr>`).join("")}</tbody></table></div>`
+    : '<p class="empty">No projects yet. Upload a job and it will show up here with its Excel file.</p>';
+  $("#pvProjects").querySelectorAll(".dlp").forEach(b=>b.onclick=e=>downloadProject(pr[+b.dataset.i],e.target));
+  $("#pvProjects").querySelectorAll(".pdel").forEach(b=>b.onclick=()=>{ const box=b.parentElement; const i=+b.dataset.i;
+    box.innerHTML='<div class="delask"><span>Delete this project and its Excel file?</span><button type="button" class="danger">Delete</button><button type="button">Cancel</button></div>';
+    const [yes,no]=box.querySelectorAll("button");
+    yes.onclick=()=>{ pr.splice(i,1); try{localStorage.setItem("buldee-projects",JSON.stringify(pr));}catch(e){} fillProfile(); };
+    no.onclick=()=>fillProfile(); no.focus(); });
+}
+function openProfile(){ $("#pvDone").textContent=""; if(!user){ $("#regModal").hidden=false; return; } view="profile"; fillProfile(); render(); try{ if(location.hash!=="#profile") history.replaceState(null,"","#profile"); }catch(e){} window.scrollTo(0,0); }
+function closeProfile(){ view=null; try{ if(location.hash) history.replaceState(null,"",location.pathname+location.search); }catch(e){} render(); }
+document.querySelectorAll("#toolRow button").forEach(b=>b.onclick=()=>{ preTool=b.dataset.tool; $("#picker").click(); });
+$("#ltProfile").onclick=openProfile; $("#whoProfile").onclick=openProfile;
+$("#pvHome").onclick=closeProfile;
+$("#pvUpload").onclick=()=>{ closeProfile(); if(!files.length) $("#picker").click(); };
+$("#pvOut").onclick=()=>{ user=null; try{localStorage.removeItem("buldee-user");}catch(e){} showUser(); files=[]; $("#log").innerHTML=""; closeProfile(); };
+$("#pvForm").addEventListener("submit",e=>{ e.preventDefault();
+  const v=id=>$("#pv-"+id).value.trim();
+  if(v("email") && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(v("email"))){ $("#pvSaved").style.color="var(--warn)"; $("#pvSaved").textContent="Enter a valid email."; return; }
+  Object.assign(user,{first:v("first"),last:v("last"),company:v("company"),phone:v("phone"),email:v("email"),role:$("#pv-role").value});
+  user.name=[user.first,user.last].filter(Boolean).join(" ")||user.name;
+  try{localStorage.setItem("buldee-user",JSON.stringify(user));}catch(e){}
+  showUser(); fillProfile(); setEdit(false); $("#pvDone").textContent="Profile saved."; window.scrollTo(0,0); });
+$("#pvCancel").onclick=()=>{ fillProfile(); if(user.first||user.company) setEdit(false); };
+$("#pvTplEdit").onclick=()=>openLogo();
+$("#logoUse").addEventListener("click",()=>{ if(view==="profile") fillProfile(); });
+function hashRoute(){ if(location.hash==="#profile"){ if(user){ view="profile"; fillProfile(); } } else view=null; render(); }
+window.addEventListener("hashchange",hashRoute);
+let rgLogo=null;
+function rgDraft(){ const v=id=>$("#"+id).value.trim(); return {logo:rgLogo||(profile&&profile.logo)||null,name:v("rg-company"),addr:v("rg-addr"),tel:v("rg-ctel"),fax:v("rg-fax"),email:v("rg-cemail"),web:v("rg-web"),slogan:v("rg-slogan"),color:(profile&&profile.color)||"#5b9bd5"}; }
+function drawRgSheet(){ $("#rgSheet").innerHTML=sheetHTML(rgDraft()); }
+["rg-company","rg-addr","rg-ctel","rg-fax","rg-cemail","rg-web","rg-slogan"].forEach(id=>$("#"+id).addEventListener("input",drawRgSheet));
+$("#rgLogoBtn").onclick=()=>$("#rgLogoPick").click();
+$("#rgLogoPick").addEventListener("change",e=>{ const f=e.target.files[0]; e.target.value=""; if(!f) return;
+  if(!/^image\//.test(f.type)){ $("#rgLogoErr").textContent="Choose a PNG, JPG or SVG image."; return; }
+  $("#rgLogoErr").textContent=""; const r=new FileReader(); r.onload=()=>{ rgLogo=r.result; $("#rgLogoThumb").src=rgLogo; $("#rgLogoThumb").hidden=false; $("#rgLogoBtn").textContent="Change logo"; drawRgSheet(); }; r.readAsDataURL(f); });
+const pvd=$("#pvDrop"); let pvFiles=[];
+function pvStage(list){
+  const notes=[]; const big=list.filter(f=>f.size>MAX_BYTES); if(big.length) notes.push(`${big.map(f=>f.name).join(", ")} ${big.length>1?"are":"is"} over 30 MB and ${big.length>1?"were":"was"} not added.`);
+  let ok=list.filter(f=>f.size<=MAX_BYTES); const room=MAX_FILES-pvFiles.length;
+  if(ok.length>room){ notes.push(`A project can have up to ${MAX_FILES} files.`); ok=ok.slice(0,Math.max(room,0)); }
+  pvFiles=pvFiles.concat(ok.map(f=>[f.name,f.size,undefined,0])); $("#pvMsg").textContent=notes.join(" "); pvDraw(); pvUpload();
+}
+let pvTimer=null;
+function pvUpload(){ /* prototype: simulated upload that starts as soon as files land */
+  if(pvTimer) return;
+  pvTimer=setInterval(()=>{
+    let busy=false;
+    pvFiles.forEach(f=>{ if((f[3]||0)<100){ busy=true; const mb=Math.max(1,(f[1]||2e6)/1048576); f[3]=Math.min(100,(f[3]||0)+Math.max(4,40/Math.sqrt(mb))); } });
+    pvDraw();
+    if(!busy){ clearInterval(pvTimer); pvTimer=null; }
+  },120);
+}
+function pvDraw(){
+  $("#pvChips").innerHTML=pvFiles.map((f,i)=>{ const p=Math.round(f[3]||0), d=p>=100; return `<span class="chip${f[2]?" link":""}${d?" done":""}"><span title="${esc(f[0])}">${esc(f[0])}</span><span class="st">${d?"&#10003; Uploaded":(f[2]?"Importing ":"Uploading ")+p+"%"}</span><button type="button" data-i="${i}" aria-label="Remove ${esc(f[0])}">&times;</button>${d?"":`<i class="bar" style="width:${p}%"></i>`}</span>`; }).join("");
+  $("#pvChips").querySelectorAll("button").forEach(b=>b.onclick=e=>{ e.stopPropagation(); pvFiles.splice(+b.dataset.i,1); pvDraw(); });
+  const allUp=pvFiles.length&&pvFiles.every(f=>(f[3]||0)>=100);
+  $("#pvDzText").hidden=pvFiles.length>0; $("#pvTools").hidden=!allUp;
+}
+pvd.addEventListener("click",()=>$("#pvPicker").click());
+pvd.addEventListener("keydown",e=>{ if(e.key==="Enter"||e.key===" "){ e.preventDefault(); $("#pvPicker").click(); } });
+$("#pvPlus").addEventListener("click",e=>{ e.stopPropagation(); $("#pvPicker").click(); });
+$("#pvPicker").addEventListener("change",e=>{ pvStage([...e.target.files]); e.target.value=""; });
+["dragover","dragenter"].forEach(t=>pvd.addEventListener(t,e=>{ e.preventDefault(); pvd.classList.add("over"); }));
+pvd.addEventListener("dragleave",()=>pvd.classList.remove("over"));
+pvd.addEventListener("drop",e=>{ e.preventDefault(); e.stopPropagation(); pvd.classList.remove("over"); if(e.dataTransfer&&e.dataTransfer.files.length) pvStage([...e.dataTransfer.files]); });
+document.querySelectorAll("#pvTools button").forEach(b=>b.onclick=()=>{
+  const list=pvFiles.slice(); files=[]; manual=false; $("#log").innerHTML=""; $("#limitMsg").textContent="";
+  addFiles(list,false); if(!files.length) return;
+  pvFiles=[]; pvDraw(); $("#pvMsg").textContent="";
+  manual=true; picked=new Set([b.dataset.tool]); render(); run();
+});
+
+$("#pvLinkForm").addEventListener("submit",e=>{ e.preventDefault();
+  const raw=$("#pvLink").value.trim(); let u; try{ u=new URL(raw); }catch(err){ $("#pvMsg").textContent="Paste a full link that starts with https://"; return; }
+  const h=u.hostname.replace(/^www\./,""); let src=null;
+  if(/(^|\.)drive\.google\.com$|(^|\.)docs\.google\.com$/.test(h)) src="Google Drive"; else if(/(^|\.)dropbox\.com$/.test(h)) src="Dropbox";
+  if(!src){ $("#pvMsg").textContent="That link isn't from Google Drive or Dropbox. Paste a link from one of those."; return; }
+  if(pvFiles.length>=MAX_FILES){ $("#pvMsg").textContent=`A project can have up to ${MAX_FILES} files.`; return; }
+  const seg=decodeURIComponent(u.pathname.split("/").filter(Boolean).pop()||"shared folder").replace(/\?.*$/,"");
+  pvFiles.push([`${src}: ${seg.length>30?seg.slice(0,30)+"…":seg}`,0,src,0]); $("#pvLink").value=""; $("#pvMsg").textContent=""; pvDraw(); pvUpload(); });
+
+/* ---------- Buldee Estimate Template (xlsx, ExcelJS) ---------- */
+const BT_DIVS=[["01","General Requirements"],["02","Existing Conditions"],["03","Concrete"],["04","Masonry (Patching & Parging)"],["05","Metals"],["06","Wood, Plastics & Composites"],["07","Thermal & Moisture Protection"],["08","Openings"],["09","Finishes"],["0908","Wall Assemblies"],["10","Specialties"],["11","Equipment"],["12","Furnishings (Window Shades)"],["13","Special Construction"],["14","Conveying Equipment"],["21","Fire Suppression"],["22","Plumbing (Fixtures)"],["23","HVAC (Mechanical)"],["25","Integrated Automation"],["26","Electrical (Lighting)"],["27","Communications"],["28","Electronic Safety & Security"],["31","Earthwork"],["32","Exterior Improvements"],["33","Utilities"],["34","Transportation"],["35","Waterway & Marine Construction"]];
+const BT_HEAD=["Item","Spec / tag","Net qty","Qty incl. waste","Unit","Price Each","Cost Item","Mark up %","Mark up Value","","Total Value","Price basis"];
+const BT_W=[95.7,106.6,12,15,7,12,14,11,14,2,36.1,132.6];
+const BT_MONEY='\\$#,##0;"($"#,##0\\);\\-';
+/* Sample takeoff lines: [item, spec/tag, net qty, waste, unit, sample price, link to trade tab] */
+const BT_SAMPLE={
+ "01":[["Office","PM, estimating, submittals, RFIs, closeout (duration from bid form)",4,0,"MO",6500],["Site management","Superintendent, temp protection, dumpsters, cleaning",14,0,"WK",3800],["Allowance","No allowance stated (Bid Form)",0,0,"LS",0]],
+ "02":[["Selective demolition - ceilings","A-201 demo note 2",2900,0,"SF",1.6],["Remove existing flooring","A-101 demo note 3",2750,0,"SF",1.25]],
+ "08":[["Door leaves - SCW 3'-0\" x 7'-0\"","Door schedule 104A-110",8,0,"EA",650],["HM frames","Door schedule",8,0,"EA",325],["Hardware sets","Set 1, 2",8,0,"EA",480]],
+ "09":[["ACT-1 2x2 lay-in ceiling","09 51 13 / ACT-1",2900,0.10,"SF",3.1,"ACT"],["ACT-1 - Installation labor","09 51 13 / ACT-1",2900,0,"SF",2.2,"ACT"],["LVT-1 flooring","09 65 19 / LVT-1",2750,0.10,"SF",4.4,"Flooring"],["LVT-1 - Installation labor","09 65 19 / LVT-1",2750,0,"SF",2.1,"Flooring"],["Rubber base 4\"","09 65 13 / RB-1",620,0.10,"LF",3.25],["Painting - all areas","09 91 23",4900,0.05,"SF",1.35]],
+ "0908":[["W1 - 3-5/8\" 20ga studs @ 16\" o.c., 5/8\" Type X GWB both sides","Wall type legend A-500",2450,0,"SF",9.5,"Walls"]],
+ "10":[["Markerboard 4' x 16'","10 11 00",6,0,"EA",640]],
+ "26":[["LED troffer type A","Fixture schedule E-001",48,0,"EA",210],["Duplex receptacles","E-101",36,0,"EA",95]]
+};
+const BT_INFO=["Owner","Architect","Bid date / time","Start date","Finish date","Duration","Liquidated damages"];
+const BT_NAVY="FF1F3864", BT_BAND="FFD9E1F2";
+const btThin={top:{style:"thin"},left:{style:"thin"},bottom:{style:"thin"},right:{style:"thin"}};
+const btFill=c=>({type:"pattern",pattern:"solid",fgColor:{argb:c}});
+function btStyleRow(row,from,to,o){ for(let c=from;c<=to;c++){ const cell=row.getCell(c); cell.font=Object.assign({name:"Arial",size:10},o.font||{}); if(o.border!==false) cell.border=btThin; if(o.fill) cell.fill=btFill(o.fill); if(o.align) cell.alignment=o.align; } }
+function btHeadRow(ws,r,vals){ const row=ws.getRow(r); vals.forEach((v,i)=>row.getCell(i+1).value=v); btStyleRow(row,1,vals.length,{font:{bold:true,color:{argb:"FFFFFFFF"}},fill:BT_NAVY,align:{horizontal:"center",vertical:"middle",wrapText:true}}); return row; }
+function btLogo(wb,ws,p,col){
+  if(!(p&&p.logo&&/^data:image\/(png|jpe?g|gif);base64,/.test(p.logo))) return;
+  try{ const ext=p.logo.slice(11,p.logo.indexOf(";")).replace("jpg","jpeg"); const id=wb.addImage({base64:p.logo,extension:ext==="jpeg"?"jpeg":ext}); ws.addImage(id,{tl:{col:col,row:0.05},ext:{width:80,height:80}}); }catch(e){}
+}
+function btTitle(wb,ws,p,title,job){
+  ws.getRow(1).height=62;
+  const a=ws.getCell("A1"); a.value=job||title; a.font={name:"Arial",size:16,bold:true}; a.alignment={vertical:"middle"};
+  btLogo(wb,ws,p,1);
+  const c=ws.getCell("C1"); c.value=String((p&&p.slogan)||(p&&p.name)||"").toUpperCase(); c.font={name:"Arial",size:14,bold:true,color:{argb:"FF1F4E9E"}}; c.alignment={vertical:"middle"};
+  const line=[p&&p.name,p&&p.addr,p&&p.tel&&"Tel "+p.tel,p&&p.email,p&&p.web].filter(Boolean).join("  ·  ");
+  const s=ws.getCell("A2"); s.value=(title?title+(line?"  ·  ":""):"")+line; s.font={name:"Arial",size:9,color:{argb:"FF555555"}};
+}
+function btSummary(wb,p,job,mode){ /* mode: "blank" | "takeoff" | "priced" */
+  const ws=wb.addWorksheet("Summary",{views:[{state:"frozen",ySplit:13}]});
+  ws.columns=BT_W.map(w=>({width:w}));
+  btTitle(wb,ws,p,mode==="blank"?"Buldee Estimate Template":mode==="priced"?"Estimate":"Quantity takeoff",job);
+  btHeadRow(ws,4,["Item","Info"]); ws.getRow(4).height=15;
+  BT_INFO.forEach((t,i)=>{ const row=ws.getRow(5+i); row.getCell(1).value=t; btStyleRow(row,1,2,{}); row.getCell(1).font={name:"Arial",size:10,bold:true}; });
+  if(mode!=="blank"){ ws.getCell("B5").value="(from Project Info)"; ws.getCell("B7").value="(from bid form)"; }
+  btHeadRow(ws,13,BT_HEAD); ws.getRow(13).height=42;
+  let r=14; const totals=[]; let bondRow=0;
+  BT_DIVS.forEach(([no,name])=>{
+    const h=ws.getRow(r); h.getCell(1).value=`DIVISION ${no} - ${name.toUpperCase()}`; btStyleRow(h,1,12,{font:{bold:true},fill:BT_BAND}); const hr=r; r++;
+    (mode==="blank"?[]:(BT_SAMPLE[no]||[])).forEach(([it,tag,q,w,u,price,link])=>{
+      const row=ws.getRow(r); row.getCell(1).value=it; row.getCell(2).value=tag;
+      row.getCell(3).value=q; row.getCell(4).value={formula:w?`C${r}*(1+${w})`:`C${r}`}; row.getCell(5).value=u;
+      if(mode==="priced"){ row.getCell(6).value=price; row.getCell(8).value=no==="01"?0:0.15; row.getCell(12).value="Sample unit price - confirm with sub quotes"; }
+      row.getCell(7).value={formula:`D${r}*F${r}`}; row.getCell(9).value={formula:`G${r}*H${r}`}; row.getCell(11).value={formula:`G${r}+I${r}`};
+      btStyleRow(row,1,12,{}); row.getCell(3).numFmt="#,##0"; row.getCell(4).numFmt="#,##0"; [6,7,9,11].forEach(c=>row.getCell(c).numFmt=BT_MONEY); row.getCell(8).numFmt="0%";
+      if(link) row.getCell(2).note=`Quantity from the ${link} tab`;
+      r++;
+    });
+    const t=ws.getRow(r); t.getCell(1).value=`Total Division ${no} - ${name}`;
+    ["G","I","K"].forEach(C=>t.getCell(C).value={formula:`SUM(${C}${hr}:INDEX(${C}:${C},ROW()-1))`});
+    btStyleRow(t,1,12,{font:{bold:true}}); [7,9,11].forEach(c=>t.getCell(c).numFmt=BT_MONEY); totals.push(r); r++;
+    if(no==="01"){ const b=ws.getRow(r); bondRow=r; b.getCell(1).value="BOND"; b.getCell(2).value="1.85% of total value after mark up, all divisions"; b.getCell(3).value=1; b.getCell(4).value={formula:`C${r}`}; b.getCell(5).value="LS"; b.getCell(8).value=0;
+      b.getCell(7).value={formula:`D${r}*F${r}`}; b.getCell(9).value={formula:`G${r}*H${r}`}; b.getCell(11).value={formula:`G${r}+I${r}`};
+      btStyleRow(b,1,12,{font:{bold:true}}); [6,7,9,11].forEach(c=>b.getCell(c).numFmt=BT_MONEY); b.getCell(8).numFmt="0%"; r++; }
+  });
+  ws.getCell(`F${bondRow}`).value={formula:"0.0185*("+totals.map(n=>"K"+n).join("+")+")"};
+  const g=ws.getRow(r); g.getCell(1).value="GRAND TOTAL - ALL DIVISIONS";
+  ["G","I","K"].forEach(C=>g.getCell(C).value={formula:totals.map(n=>C+n).join("+")+`+${C}${bondRow}`});
+  btStyleRow(g,1,12,{font:{bold:true},fill:BT_BAND}); [7,9,11].forEach(c=>g.getCell(c).numFmt=BT_MONEY); r+=2;
+  const k=ws.getCell(`A${r}`); k.value="KEY ASSUMPTIONS / ITEMS TO CONFIRM"; k.font={name:"Arial",size:10,bold:true}; r++;
+  const notes=mode==="blank"?["Quantities: Net qty = measured; Qty incl. waste = Net x (1 + waste). Default waste: flooring/tile/ACT/GWB 10%, paint 5%, counted items 0%.","Prices go in Price Each (F) and Mark up % (H); Cost, Mark up Value and Total Value calculate."]
+    :["Prototype: these lines are sample quantities, not read from your drawings.","Waste factors: ACT, LVT, base 10%; paint 5%; counted items 0%."].concat(mode==="priced"?["Unit prices are samples. Confirm with sub quotes before bidding."]:["No pricing. Price Each, Mark up % and Price basis are left for the Estimate."]);
+  notes.forEach((t,i)=>{ const c=ws.getCell(`A${r+i}`); c.value=`${i+1}. ${t}`; c.font={name:"Arial",size:10,color:{argb:"FF555555"}}; });
+  ws.pageSetup={orientation:"landscape",fitToPage:true,fitToWidth:1,fitToHeight:0};
+  return ws;
+}
+function btTrade(wb,p,job,title,blocks){ /* blocks: [header, [[component,spec,basis,net,waste,unit]...]] */
+  const ws=wb.addWorksheet(title); ws.columns=[48,30,22,12,10,15,8].map(w=>({width:w}));
+  btTitle(wb,ws,p,title,job);
+  btHeadRow(ws,4,["Component","Spec / size","Basis","Net qty","Waste %","Qty incl. waste","Unit"]); ws.getRow(4).height=30;
+  let r=5;
+  blocks.forEach(([head,lines])=>{ const h=ws.getRow(r); h.getCell(1).value=head; btStyleRow(h,1,7,{font:{bold:true},fill:BT_BAND}); r++;
+    lines.forEach(([c,s,b,q,w,u])=>{ const row=ws.getRow(r); [c,s,b,q,w].forEach((v,i)=>row.getCell(i+1).value=v); row.getCell(6).value={formula:`D${r}*(1+E${r})`}; row.getCell(7).value=u;
+      btStyleRow(row,1,7,{}); row.getCell(4).numFmt="#,##0"; row.getCell(5).numFmt="0%"; row.getCell(6).numFmt="#,##0"; r++; });
+  });
+  const n=ws.getCell(`A${r+1}`); n.value="Prototype: sample quantities, not read from your drawings."; n.font={name:"Arial",size:10,color:{argb:"FF555555"}};
+}
+function btList(wb,p,job,title,head,rows){
+  const ws=wb.addWorksheet(title); ws.columns=head.map((h,i)=>({width:i===0?40:20}));
+  btTitle(wb,ws,p,title,job); btHeadRow(ws,4,head); ws.getRow(4).height=30;
+  rows.forEach((v,i)=>{ const row=ws.getRow(5+i); v.forEach((x,j)=>row.getCell(j+1).value=x); btStyleRow(row,1,head.length,{}); });
+  const n=ws.getCell(`A${6+rows.length}`); n.value="Prototype: sample rows, not read from your files."; n.font={name:"Arial",size:10,color:{argb:"FF555555"}};
+}
+const BT_TABS={
+  "Walls":(wb,p,j)=>btTrade(wb,p,j,"Walls",[["W1 - 3-5/8\" 20ga studs @ 16\" o.c., 5/8\" Type X GWB both sides (245 LF x 10'-0\" = 2,450 SF)",[["3-5/8\" 20ga studs","16\" o.c.","LF x 0.75 + 1 per run",185,0.05,"EA"],["3-5/8\" 20ga track","top & bottom","LF x 2",490,0.05,"LF"],["5/8\" Type X GWB","2 sides, 1 layer","SF x 2",4900,0.10,"SF"],["5/8\" Type X GWB sheets 4x10","","SF x 2 / 40",123,0.10,"EA"],["Acoustic insulation 3-1/2\"","","SF",2450,0.05,"SF"]]]]),
+  "Flooring":(wb,p,j)=>btTrade(wb,p,j,"Flooring",[["LVT-1 - 09 65 19 (Rooms 101-108, 2,750 SF)",[["LVT-1 plank","09 65 19","Room schedule SF",2750,0.10,"SF"],["Rubber base 4\" RB-1","09 65 13","Perimeter LF",620,0.10,"LF"],["Installation labor - LVT-1","","SF",2750,0,"SF"]]]]),
+  "ACT":(wb,p,j)=>btTrade(wb,p,j,"ACT",[["ACT-1 2x2 lay-in - 09 51 13 (Rooms 101-108, 2,900 SF, 640 LF perimeter)",[["Ceiling tiles 2x2","ACT-1","SF / 4",725,0.05,"EA"],["Main tee","12' lengths","SF / 4 x 1",725,0.05,"LF"],["Cross tee 4'","","SF / 4",725,0.05,"EA"],["Wall angle","","Perimeter LF",640,0.10,"LF"],["Installation labor - ACT-1","","SF",2900,0,"SF"]]]]),
+  "Schedule":(wb,p,j)=>btList(wb,p,j,"Schedule",["Activity","Duration (days)","Start","Finish","Predecessors","Float"],[["Mobilization",5,"","","",0],["Demolition",10,"","","Mobilization",0],["Framing & GWB",15,"","","Demolition",0],["Ceilings",8,"","","Framing & GWB",0],["Flooring",6,"","","Ceilings",0],["Punch list & closeout",5,"","","Flooring",0]]),
+  "Submittals":(wb,p,j)=>btList(wb,p,j,"Submittals",["Spec section","Item","Type","Required on site","Lead time (days)"],[["09 65 19","LVT-1","Product data / samples","",21],["09 51 13","ACT-1","Product data / samples","",28],["08 71 00","Door hardware","Hardware schedule","",42]]),
+  "Daily Log":(wb,p,j)=>btList(wb,p,j,"Daily Log",["Field","Entry"],[["Date",""],["Weather",""],["Crew on site",""],["Work performed",""],["Deliveries",""],["Inspections / visitors",""],["Safety / incidents",""]]),
+  "Open RFIs & PCOs":(wb,p,j)=>btList(wb,p,j,"Open RFIs & PCOs",["No.","Description","Status / notes"],[["RFI-01","",""],["PCO-01","",""]]),
+  "Buyout Log":(wb,p,j)=>btList(wb,p,j,"Buyout Log",["Trade","Vendor","Scope","Amount","Order by","Status"],[["Flooring","","LVT-1, base","","",""],["Ceilings","","ACT-1","","",""],["Drywall","","W1 walls","","",""]]),
+  "Purchase Orders":(wb,p,j)=>btList(wb,p,j,"Purchase Orders",["PO no.","Vendor","Items","Total","Date"],[["PO-001","","","",""]])
+};
+async function buildWorkbook(rec){
+  const wb=new ExcelJS.Workbook(); wb.creator="Buldee"; const job=rec.job||"Job"; const ids=rec.ids||[];
+  const tabs=SKILLS.filter(s=>ids.includes(s.id)).flatMap(s=>s.out);
+  const hasT=ids.includes("daskal-takeoff"), hasE=ids.includes("estimate");
+  if(hasT||hasE||!tabs.length) btSummary(wb,profile,job,hasE?"priced":"takeoff");
+  tabs.forEach(t=>{ const b=BT_TABS[t]; if(b) b(wb,profile,job); });
+  return await wb.xlsx.writeBuffer();
+}
+async function buildBlankTemplate(){ const wb=new ExcelJS.Workbook(); wb.creator="Buldee"; btSummary(wb,profile,"NAME OF PROJECT","blank"); return await wb.xlsx.writeBuffer(); }
+let dlP=null; function dl(){ if(!dlP) dlP=(window.claude&&window.claude.use)?Promise.resolve(window.claude.use("downloads")).catch(()=>null):Promise.resolve(null); return dlP; }
+function dlSay(btn,t){ const box=btn&&btn.parentElement; if(!box) return; const old=box.querySelector(".dlmsg"); if(old) old.remove(); if(!t) return; const m=document.createElement("span"); m.className="dlmsg"; m.textContent=t; box.appendChild(m); }
+async function saveXlsx(filename,make,btn){
+  dlSay(btn,"");
+  if(typeof ExcelJS==="undefined"){ dlSay(btn,"The Excel builder didn't load. Reload the page and try again."); return; }
+  const [d,bytes]=await Promise.all([dl(),make().catch(()=>null)]);
+  if(!bytes){ dlSay(btn,"Couldn't build the Excel file."); return; }
+  if(!d){ dlSay(btn,"Downloads aren't available in this view. Open the page in claude.ai in a browser."); return; }
+  try{ await d.save({filename,data:new Uint8Array(bytes)}); dlSay(btn,"Saved."); }
+  catch(e){ const c=e&&e.code; dlSay(btn,c==="declined"?"Download cancelled.":c==="rate_limited"?"Another download is waiting. Try again in a moment.":"This view can't save files. Open the page in a browser."); }
+}
+function downloadProject(rec,btn){ if(rec) saveXlsx((rec.outs&&rec.outs[0])||"Buldee Estimate Template.xlsx",()=>buildWorkbook(rec),btn); }
+$("#pvTplBlank").onclick=e=>saveXlsx("Buldee Estimate Template.xlsx",buildBlankTemplate,e.target);
+
+drawRgSheet();
+hashRoute();
+</script>
