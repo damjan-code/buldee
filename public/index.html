@@ -499,7 +499,7 @@ table.proj td:nth-child(2){white-space:nowrap}
   </div>
 </div>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js"></script>
+<script async src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js"></script>
 <script>
 const KINDS = {
   drawings:"Drawings", specs:"Specifications", addenda:"Addendum", bidform:"Bid form / scope",
@@ -981,6 +981,7 @@ let dlP=null; function dl(){ if(!dlP) dlP=(window.claude&&window.claude.use)?Pro
 function dlSay(btn,t){ const box=btn&&btn.parentElement; if(!box) return; const old=box.querySelector(".dlmsg"); if(old) old.remove(); if(!t) return; const m=document.createElement("span"); m.className="dlmsg"; m.textContent=t; box.appendChild(m); }
 async function saveXlsx(filename,make,btn){
   dlSay(btn,"");
+  if(typeof ExcelJS==="undefined"){ dlSay(btn,"Preparing…"); for(let i=0;i<60&&typeof ExcelJS==="undefined";i++) await new Promise(r=>setTimeout(r,250)); dlSay(btn,""); }
   if(typeof ExcelJS==="undefined"){ dlSay(btn,"The Excel builder didn't load. Reload the page and try again."); return; }
   const [d,bytes]=await Promise.all([dl(),make().catch(()=>null)]);
   if(!bytes){ dlSay(btn,"Couldn't build the Excel file."); return; }
