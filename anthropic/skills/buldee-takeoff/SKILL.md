@@ -22,7 +22,7 @@ The deliverable is always ONE .xlsx file built on the **Buldee Estimate Template
 ## 1. Gather inputs
 - Drawings (PDF plans, finish schedules, door/window/fixture schedules), spec book, bid form, addenda.
 - Read the bid form / scope of work to learn exactly what the contractor must install vs. what is by owner, by others, or alternates. Read every addendum and apply changes.
-- If a project info sheet or bid form gives owner, architect, bid date, start/finish dates, duration or liquidated damages, fill rows 5-11; otherwise leave them blank.
+- **Fill the project information block (A1 and rows 5-11) before any quantities.** This is required on every run. Search, in this order: the drawing cover sheet and title blocks (project name, owner, architect); spec 00 11 13 Advertisement / Invitation to Bid and 00 21 13 Instructions to Bidders (bid date and time); 00 41 00 Bid Form; 00 52 00 Agreement, 00 73 00 Supplementary Conditions and 01 10 00 Summary (start, substantial and final completion, contract time, liquidated damages); any project info sheet. Addenda override all of these, including changed bid dates. A1 = the full project name as written on the cover sheet (fall back to the job name). B5 Owner, B6 Architect, B7 bid date and time, B8 start date, B9 finish date, B10 duration (e.g. "180 calendar days"), B11 liquidated damages (e.g. "$500 per calendar day"). Write "Not stated in the documents" for anything that isn't there; never leave B5-B11 empty. List each source sheet or section in KEY ASSUMPTIONS.
 
 ## 2. Do the takeoff
 - Go sheet by sheet through the drawings; read schedules and keynotes, not just plan graphics. Use the drawing scale to measure (LF, SF, SY, CY, EA, LS, etc.).
