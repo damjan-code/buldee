@@ -1,3 +1,7 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Buldee</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -495,7 +499,7 @@ table.proj td:nth-child(2){white-space:nowrap}
   </div>
 </div>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js"></script>
+<script async src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js"></script>
 <script>
 const KINDS = {
   drawings:"Drawings", specs:"Specifications", addenda:"Addendum", bidform:"Bid form / scope",
@@ -640,6 +644,7 @@ function updateRunBar(){
 const sleep = ms => new Promise(r=>setTimeout(r,ms));
 async function run(){
   const job = $("#jobName").value.replace(/^\d{2}-\d{2}-\d{4}\s*/,"") || "Job";
+  if(!isSample && picked.has("daskal-takeoff") && files.length && files.every(f=>FILEMAP.has(f.name)) && await liveReady()) return runLive(job);
   const log = $("#log"); log.innerHTML = "";
   $("#run").disabled = true;
   for (const s of SKILLS.filter(s=>picked.has(s.id))){
@@ -678,10 +683,10 @@ const bb=$("#bigbox");
 bb.addEventListener("click",()=>$("#picker").click());
 bb.addEventListener("keydown",e=>{ if(e.key==="Enter"||e.key===" "){e.preventDefault();$("#picker").click();} });
 $("#addMore").onclick=()=>$("#picker").click();
-$("#picker").addEventListener("change",e=>{ addFiles([...e.target.files].map(f=>[f.name,f.size])); e.target.value=""; });
+$("#picker").addEventListener("change",e=>{ addFiles(keepFiles([...e.target.files]).map(f=>[f.name,f.size])); e.target.value=""; });
 ["dragover","dragenter"].forEach(t=>document.addEventListener(t,e=>{e.preventDefault();bb.classList.add("over");}));
 ["dragleave","drop"].forEach(t=>document.addEventListener(t,e=>{e.preventDefault();bb.classList.remove("over");}));
-document.addEventListener("drop",e=>{ if(!(e.dataTransfer&&e.dataTransfer.files.length)) return; if(view==="profile") pvStage([...e.dataTransfer.files]); else addFiles([...e.dataTransfer.files].map(f=>[f.name,f.size])); });
+document.addEventListener("drop",e=>{ if(!(e.dataTransfer&&e.dataTransfer.files.length)) return; if(view==="profile") pvStage([...e.dataTransfer.files]); else addFiles(keepFiles([...e.dataTransfer.files]).map(f=>[f.name,f.size])); });
 $("#home").onclick=()=>{$("#limitMsg").textContent="";$("#landMsg").textContent="";files=[];manual=false;$("#log").innerHTML="";render();};
 $("#sampleBid").onclick=()=>{files=[];manual=false;$("#jobName").value="12-03-2026 Bridgewater-Raritan Middle School Classroom Interior Renovations";addFiles(SAMPLES.bid,true);$("#log").innerHTML="";};
 $("#sampleField").onclick=()=>{files=[];manual=false;$("#jobName").value="Wallington Municipal";addFiles(SAMPLES.field,true);$("#log").innerHTML="";};
@@ -781,9 +786,10 @@ function fillProfile(){
   $("#pvTplTxt").textContent = profile ? `Saved for ${profile.name||"your company"}.` : "Not set up yet. Add your logo and contact details so they go on your outputs.";
   $("#pvTplEdit").textContent = profile ? "Edit company template" : "Set up company template";
   let pr=[]; try{ pr=JSON.parse(localStorage.getItem("buldee-projects")||"[]"); }catch(e){}
-  $("#pvProjects").innerHTML = pr.length ? `<div class="tw"><table class="proj"><thead><tr><th>Job name</th><th>Excel file</th></tr></thead><tbody>${pr.map((x,i)=>`<tr><td>${esc(x.job)}${x.sample?' <span class="pill off">Sample</span>':""}<div class="sub" style="margin:2px 0 0">${esc(x.date)} · ${(x.tools||[]).map(esc).join(", ")}</div></td><td><div class="xrow"><span class="mono">${esc((x.outs||[])[0]||"")}</span><button class="primary dlp" data-i="${i}" type="button">Download</button><button class="xdel pdel" data-i="${i}" type="button" aria-label="Delete ${esc(x.job)}" title="Delete project">&times;</button></div></td></tr>`).join("")}</tbody></table></div>`
+  $("#pvProjects").innerHTML = pr.length ? `<div class="tw"><table class="proj"><thead><tr><th>Job name</th><th>Excel file</th></tr></thead><tbody>${pr.map((x,i)=>`<tr><td>${esc(x.job)}${x.sample?' <span class="pill off">Sample</span>':""}<div class="sub" style="margin:2px 0 0">${esc(x.date)} · ${(x.tools||[]).map(esc).join(", ")}</div></td><td><div class="xrow"><span class="mono">${esc((x.outs||[])[0]||"")}</span>${x.live&&x.status!=="done"?`<span class="pill ${x.status==="failed"?"off":"next"}">${x.status==="failed"?"Failed":"Running"}</span>`:`<button class="primary dlp" data-i="${i}" type="button">Download</button>`}<button class="xdel pdel" data-i="${i}" type="button" aria-label="Delete ${esc(x.job)}" title="Delete project">&times;</button></div></td></tr>`).join("")}</tbody></table></div>`
     : '<p class="empty">No projects yet. Upload a job and it will show up here with its Excel file.</p>';
   $("#pvProjects").querySelectorAll(".dlp").forEach(b=>b.onclick=e=>downloadProject(pr[+b.dataset.i],e.target));
+  pr.filter(x=>x.live&&x.runId&&x.status!=="done"&&x.status!=="failed").forEach(x=>pollRun(x.runId));
   $("#pvProjects").querySelectorAll(".pdel").forEach(b=>b.onclick=()=>{ const box=b.parentElement; const i=+b.dataset.i;
     box.innerHTML='<div class="delask"><span>Delete this project and its Excel file?</span><button type="button" class="danger">Delete</button><button type="button">Cancel</button></div>';
     const [yes,no]=box.querySelectorAll("button");
@@ -818,7 +824,7 @@ $("#rgLogoPick").addEventListener("change",e=>{ const f=e.target.files[0]; e.tar
   if(!/^image\//.test(f.type)){ $("#rgLogoErr").textContent="Choose a PNG, JPG or SVG image."; return; }
   $("#rgLogoErr").textContent=""; const r=new FileReader(); r.onload=()=>{ rgLogo=r.result; $("#rgLogoThumb").src=rgLogo; $("#rgLogoThumb").hidden=false; $("#rgLogoBtn").textContent="Change logo"; drawRgSheet(); }; r.readAsDataURL(f); });
 const pvd=$("#pvDrop"); let pvFiles=[];
-function pvStage(list){
+function pvStage(list){ keepFiles(list);
   const notes=[]; const big=list.filter(f=>f.size>MAX_BYTES); if(big.length) notes.push(`${big.map(f=>f.name).join(", ")} ${big.length>1?"are":"is"} over 30 MB and ${big.length>1?"were":"was"} not added.`);
   let ok=list.filter(f=>f.size<=MAX_BYTES); const room=MAX_FILES-pvFiles.length;
   if(ok.length>room){ notes.push(`A project can have up to ${MAX_FILES} files.`); ok=ok.slice(0,Math.max(room,0)); }
@@ -975,16 +981,104 @@ let dlP=null; function dl(){ if(!dlP) dlP=(window.claude&&window.claude.use)?Pro
 function dlSay(btn,t){ const box=btn&&btn.parentElement; if(!box) return; const old=box.querySelector(".dlmsg"); if(old) old.remove(); if(!t) return; const m=document.createElement("span"); m.className="dlmsg"; m.textContent=t; box.appendChild(m); }
 async function saveXlsx(filename,make,btn){
   dlSay(btn,"");
+  if(typeof ExcelJS==="undefined"){ dlSay(btn,"Preparing…"); for(let i=0;i<60&&typeof ExcelJS==="undefined";i++) await new Promise(r=>setTimeout(r,250)); dlSay(btn,""); }
   if(typeof ExcelJS==="undefined"){ dlSay(btn,"The Excel builder didn't load. Reload the page and try again."); return; }
   const [d,bytes]=await Promise.all([dl(),make().catch(()=>null)]);
   if(!bytes){ dlSay(btn,"Couldn't build the Excel file."); return; }
-  if(!d){ dlSay(btn,"Downloads aren't available in this view. Open the page in claude.ai in a browser."); return; }
+  if(!d){ try{ const blob=new Blob([bytes],{type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"}); const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download=filename; document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(a.href),5000); dlSay(btn,"Saved."); }catch(e){ dlSay(btn,"Couldn't save the file. Try again."); } return; }
   try{ await d.save({filename,data:new Uint8Array(bytes)}); dlSay(btn,"Saved."); }
   catch(e){ const c=e&&e.code; dlSay(btn,c==="declined"?"Download cancelled.":c==="rate_limited"?"Another download is waiting. Try again in a moment.":"This view can't save files. Open the page in a browser."); }
 }
-function downloadProject(rec,btn){ if(rec) saveXlsx((rec.outs&&rec.outs[0])||"Buldee Estimate Template.xlsx",()=>buildWorkbook(rec),btn); }
+function downloadProject(rec,btn){ if(rec&&rec.live) return liveDownload(rec,btn); if(rec) saveXlsx((rec.outs&&rec.outs[0])||"Buldee Estimate Template.xlsx",()=>buildWorkbook(rec),btn); }
 $("#pvTplBlank").onclick=e=>saveXlsx("Buldee Estimate Template.xlsx",buildBlankTemplate,e.target);
+
+/* ---------- Live runs (real site only): Take Off runs the skill on Anthropic ---------- */
+const FILEMAP=new Map();
+function keepFiles(list){ list.forEach(f=>{ if(f&&f.name&&typeof f.size==="number") FILEMAP.set(f.name,f); }); return list; }
+let liveP=null;
+function liveReady(){ if(!liveP) liveP=fetch("/api/runs",{cache:"no-store"}).then(r=>r.ok?r.json():null).then(d=>!!(d&&d.ready)).catch(()=>false); return liveP; }
+function codeHeader(){ let c=""; try{ c=localStorage.getItem("buldee-code")||""; }catch(e){} return c?{"x-buldee-code":c}:{}; }
+async function liveFetch(url,opts){
+  for(let i=0;i<2;i++){
+    const r=await fetch(url,Object.assign({},opts,{headers:Object.assign({},(opts&&opts.headers)||{},codeHeader())}));
+    if(r.status!==401) return r;
+    const c=window.prompt("Enter your Buldee access code");
+    if(!c) return r;
+    try{ localStorage.setItem("buldee-code",c.trim()); }catch(e){}
+  }
+  return fetch(url,Object.assign({},opts,{headers:Object.assign({},(opts&&opts.headers)||{},codeHeader())}));
+}
+function saveProjects(fn){ let pr=[]; try{ pr=JSON.parse(localStorage.getItem("buldee-projects")||"[]"); }catch(e){} fn(pr); try{ localStorage.setItem("buldee-projects",JSON.stringify(pr.slice(0,50))); }catch(e){} return pr; }
+function updateRun(runId,patch){ saveProjects(pr=>{ const x=pr.find(p=>p.runId===runId); if(x) Object.assign(x,patch); }); if(view==="profile") fillProfile(); }
+
+async function runLive(job){
+  const log=$("#log"); log.innerHTML=""; $("#run").disabled=true;
+  const s=SKILLS.find(k=>k.id==="daskal-takeoff");
+  const card=document.createElement("div"); card.className="job-run";
+  card.innerHTML=`<h4><span>${s.name} <code class="skilltag">/daskal-takeoff</code></span><span class="pill next">Running</span></h4><ul class="steps"><li class="active">Uploading ${files.length} file${files.length>1?"s":""}</li><li>Running the takeoff on Anthropic (often 20 to 60 minutes)</li><li>Saving the Excel file on the Buldee Estimate Template</li></ul><p class="sub" id="liveMsg" style="margin:8px 0 0"></p>`;
+  log.appendChild(card);
+  const lis=card.querySelectorAll("li"), pill=card.querySelector(".pill"), msg=card.querySelector("#liveMsg");
+  const fail=t=>{ pill.className="pill off"; pill.textContent="Stopped"; msg.textContent=t; $("#run").disabled=false; };
+  const xname=`${job} - Buldee Estimate Template.xlsx`;
+  let blobs=[];
+  try{
+    const {upload}=await import("https://esm.sh/@vercel/blob@2.9.0/client");
+    for(const f of files){
+      const file=FILEMAP.get(f.name);
+      const b=await upload(f.name,file,{access:"public",handleUploadUrl:"/api/upload",headers:codeHeader(),multipart:file.size>5*1024*1024,
+        onUploadProgress:p=>{ msg.textContent=`Uploading ${f.name}: ${Math.round(p.percentage)}%`; }});
+      blobs.push({url:b.url,name:f.name});
+    }
+  }catch(e){ return fail("Upload failed: "+(e&&e.message||e)+". Check the access code and try again."); }
+  lis[0].className="done"; lis[1].className="active"; msg.textContent="Starting the run…";
+  const company=profile?{name:profile.name,slogan:profile.slogan,addr:profile.addr,tel:profile.tel,fax:profile.fax,email:profile.email,web:profile.web,logo:(profile.logo&&profile.logo.length<1500000)?profile.logo:null}:null;
+  let r; try{ r=await liveFetch("/api/runs",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({job,files:blobs,company})}); }catch(e){ return fail("Couldn't reach Buldee. Check your connection."); }
+  if(!r.ok){ const d=await r.json().catch(()=>({})); return fail(d.error==="access_code"?"That access code didn't work.":"The run couldn't start ("+(d.error||r.status)+")."); }
+  const {runId}=await r.json();
+  const rec={job:$("#jobName").value,date:new Date().toISOString().slice(0,10),sample:false,ids:["daskal-takeoff"],tools:[s.name],outs:[xname],live:true,runId,status:"running"};
+  saveProjects(pr=>pr.unshift(rec));
+  if(!demoUsed){ demoUsed=true; try{localStorage.setItem("buldee-demo-used","1");}catch(e){} }
+  updateBadge();
+  msg.innerHTML='Running. You can leave this page: the job is in <a href="#profile">My projects</a> and its Excel file appears there when it\'s done.';
+  pollRun(runId,{onDone:x=>{
+    lis[1].className="done"; lis[2].className="done"; pill.className="pill rec"; pill.textContent="Done";
+    msg.textContent="";
+    const xf=document.createElement("div"); xf.className="xfile";
+    xf.innerHTML=`<div class="xicon">XLSX</div><div class="xbody"><b>${esc(xname)}</b><span>Takeoff on the Buldee Estimate Template</span></div><button class="primary dlx" type="button">Download</button>`;
+    log.appendChild(xf); xf.querySelector(".dlx").onclick=e=>downloadProject(x,e.target);
+    const saved=document.createElement("p"); saved.className="savednote"; saved.innerHTML='&#10003; Added to My projects with a Download button. <a href="#profile">Go to My projects</a>'; log.appendChild(saved);
+    $("#run").disabled=false;
+  },onFail:reason=>fail(reason==="budget_reached"?"The run hit its spending cap before finishing.":"The run stopped before finishing ("+reason+").")});
+}
+
+const POLLING=new Set();
+async function pollRun(runId,cb){
+  if(POLLING.has(runId)&&!cb) return; POLLING.add(runId);
+  const t0=Date.now();
+  for(;;){
+    await sleep(15000);
+    let d=null; try{ const r=await liveFetch("/api/run-status?id="+encodeURIComponent(runId)); d=r.ok?await r.json():null; }catch(e){}
+    if(!d) continue;
+    if(d.status==="done"){ updateRun(runId,{status:"done",files:d.files}); POLLING.delete(runId); let x=null; saveProjects(pr=>{ x=pr.find(p=>p.runId===runId); }); if(cb&&cb.onDone) cb.onDone(x); return; }
+    if(d.status==="failed"){ updateRun(runId,{status:"failed",reason:d.reason}); POLLING.delete(runId); if(cb&&cb.onFail) cb.onFail(d.reason); return; }
+    const m=document.getElementById("liveMsg"); if(cb&&m) m.innerHTML=`Running for ${Math.round((Date.now()-t0)/60000)} min. You can leave this page: the job is in <a href="#profile">My projects</a>.`;
+  }
+}
+
+async function liveDownload(rec,btn){
+  const f=(rec.files||[])[0];
+  if(!f){ dlSay(btn,"Not ready yet."); return; }
+  dlSay(btn,"Preparing…");
+  try{
+    const r=await liveFetch(`/api/run-file?id=${encodeURIComponent(rec.runId)}&file=${encodeURIComponent(f.id)}`);
+    if(!r.ok) throw new Error(r.status);
+    const blob=await r.blob(); const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download=f.name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(a.href),5000);
+    dlSay(btn,"Saved.");
+  }catch(e){ dlSay(btn,"Couldn't download the file. Try again."); }
+}
 
 drawRgSheet();
 hashRoute();
 </script>
+
+</html>
