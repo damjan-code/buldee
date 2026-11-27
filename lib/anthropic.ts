@@ -2,6 +2,7 @@ import Anthropic from "@anthropic-ai/sdk";
 
 // IDs come from `ant apply` (see anthropic/README.md) and are set as Vercel env vars.
 export const AGENT_ID = process.env.BULDEE_TAKEOFF_AGENT_ID ?? "";
+export const ESTIMATE_AGENT_ID = process.env.BULDEE_ESTIMATE_AGENT_ID ?? "";
 export const ENVIRONMENT_ID = process.env.BULDEE_ENVIRONMENT_ID ?? "";
 
 // Hard cap per run, in US cents (list price). Default $25.
@@ -24,8 +25,9 @@ export function checkAccess(req: Request): Response | null {
   return json({ error: "access_code" }, 401);
 }
 
-export function configured(): Response | null {
-  if (!process.env.ANTHROPIC_API_KEY || !AGENT_ID || !ENVIRONMENT_ID) {
+export function configured(tool: "takeoff" | "estimate" | "any" = "any"): Response | null {
+  const agent = tool === "estimate" ? ESTIMATE_AGENT_ID : tool === "takeoff" ? AGENT_ID : AGENT_ID || ESTIMATE_AGENT_ID;
+  if (!process.env.ANTHROPIC_API_KEY || !agent || !ENVIRONMENT_ID) {
     return json({ error: "not_configured" }, 503);
   }
   return null;
