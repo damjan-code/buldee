@@ -1,8 +1,8 @@
 # Anthropic setup for Buldee
 
-The Take Off button runs the `buldee-takeoff` skill on Anthropic Managed Agents.
+The Take Off button runs the `daskal-takeoff` skill on Anthropic Managed Agents.
 
-- `skills/buldee-takeoff/` - the public takeoff skill (from daskal-takeoff, with the Daskal-only parts removed) and `assets/Buldee Estimate Template.xlsx`.
+- `skills/daskal-takeoff/` - Damjan's daskal-takeoff skill, word for word, with a "Running on Buldee" section 0 in place of the Dropbox download steps and `assets/Buldee Estimate Template.xlsx`.
 - `agents/buldee-takeoff.md` - the agent (Claude Opus 5.5, the skill, the xlsx skill, web tools off).
 - `environments/buldee.yaml` - the cloud sandbox (limited network, package installs allowed).
 

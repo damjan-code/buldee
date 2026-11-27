@@ -1,28 +1,35 @@
 ---
-name: buldee-takeoff
-description: Build a quantity takeoff (quantities only, no pricing) from a job's uploaded plans, specs and addenda, on the Buldee Estimate Template, and save it as an Excel file.
+name: "daskal-takeoff"
+description: "Build a Daskal LLC quantity takeoff (quantities only, no pricing) from a Current Bids project's plans, specs and addenda in the Daskal Estimating Template."
 ---
 
-# Buldee Takeoff
+# Daskal Takeoff
 
-Use this skill for every Take Off run on Buldee. You run unattended: there is no one to answer questions during the run. Never stop to ask; make the most reasonable assumption, write it under Key Assumptions, and keep going.
+Use whenever the user asks for a takeoff or "takeoff by division" for a Daskal LLC job (General Contractor, 15 Boonton Ave, Butler NJ 07405). Past jobs built this way: Randolph HS Art Room, Wayne Library, Franklin Library, Wallington Municipal, Highlawn Pavilion, Andover Morris ES. When the user says "Randolph format" or "our template", this is the format.
 
-The deliverable is always ONE .xlsx file built on the **Buldee Estimate Template**.
+The deliverable is always an .xlsx file built on the **Estimating Template** (load the xlsx skill before building).
 
-**This skill does quantities only. No pricing.** Leave Price Each (F), Mark up % (H) and Price basis (L) blank; keep the formulas in G, I, K so they fill in once prices are added. Pricing is done by the separate estimate tool.
+**This skill does quantities only. No pricing.** Leave Price Each (F), Mark up % (H) and Price basis (L) blank; keep the formulas in G, I, K so they fill in once prices are added. Pricing is done by the separate **estimate** skill.
 
-## 0. Inputs and output (always first)
-- **Job files:** everything under `/mnt/session/uploads/job/` (drawings, specs, addenda, bid form, site photos). List them all with sizes, then read each one. Don't skip files.
-- **Template:** `assets/Buldee Estimate Template.xlsx` in this skill's directory. Always copy it; never edit the original.
-- **Company letterhead (optional):** `/mnt/session/uploads/company/company.json` (name, slogan, address, phone, email, website) and `/mnt/session/uploads/company/logo.png`. If present, put the logo at B1 (~200x200 px) and the slogan in C1 (uppercase). If absent, leave B1 empty and put the company name, or nothing, in C1.
-- **Job name:** given in the kickoff message. Put it in A1.
-- **Output:** save the finished file as `/mnt/session/outputs/<Job name> - Buldee Estimate Template.xlsx`. Save nothing else in `/mnt/session/outputs/`.
-- **Tools:** use Python. Install what you need with `pip install openpyxl pymupdf pillow` (PyMuPDF reads PDF text with positions and renders pages to images; use it wherever these steps mention pdftotext or pdftoppm). Recalculate with LibreOffice if it is available; if not, verify every formula by reading the cells back with openpyxl.
+## 0. Running on Buldee (read first; this overrides any later step about Dropbox, the user's computer, asking questions or where to save)
+You run unattended on the Buldee website: nobody can answer questions during the run. Never stop to ask (no AskUserQuestion). Make the most reasonable assumption, write it under Key Assumptions, and keep going. Skip the "pick the project from Current Bids" and download steps: the files were already uploaded.
+- **Job files:** everything under `/mnt/session/uploads/job/` (drawings, specs, addenda, bid form, Project Info, site photos). List them all with sizes, then read each one. Don't skip files.
+- **Template:** `assets/Buldee Estimate Template.xlsx` in this skill's directory (the Estimating Template layout). Use it wherever this skill says Estimating Template. Always copy it; never edit the original.
+- **Company letterhead (optional):** `/mnt/session/uploads/company/company.json` (name, slogan, address, phone, email, website) and `/mnt/session/uploads/company/logo.png`. If present, put the logo at B1 (~200x200 px) and the slogan in C1 (uppercase, Arial 14 bold, color 1F4E9E). If absent, leave B1 empty and keep C1 as in the template.
+- **Output:** save exactly one file in `/mnt/session/outputs/`, named exactly as the kickoff message says (`<Job name> - Buldee Estimate Template.xlsx`). Save nothing else in `/mnt/session/outputs/`.
+- **Tools:** use Python. Install what you need with `pip install openpyxl pymupdf pillow python-docx` (PyMuPDF reads PDF text with positions and renders pages; use it wherever this skill mentions pdftotext or pdftoppm). Recalculate with LibreOffice if available; if not, verify every formula by reading the cells back with openpyxl.
+
+### Project information block (required, do it before any quantities)
+- **A1 = the full project name** exactly as written on the drawing cover sheet / title block or the spec book cover (e.g. "Bridgewater-Raritan Middle School Classroom Interior Renovations"), not the file name. Fall back to the job name in the kickoff message only if no document gives one.
+- **Rows 5-11, column B**, always all seven: B5 Owner, B6 Architect, B7 Bid date / time, **B8 Start date, B9 Finish date, B10 Duration, B11 Liquidated damages**.
+- Sources, in this order: Project Info.docx if uploaded; drawing cover sheet and title blocks; spec 00 11 13 Advertisement / Invitation to Bid and 00 21 13 Instructions to Bidders; 00 41 00 Bid Form; 00 52 00 Agreement; 00 73 00 Supplementary Conditions; 01 10 00 Summary of Work; 01 32 00 schedule. Addenda override all of these (including changed bid dates).
+- Start date: the contract start, notice to proceed or mobilization date. Finish date: substantial completion (add final completion in brackets if both are given). Duration: as stated (e.g. "180 calendar days"); if only start and finish are given, compute it; if only start and duration are given, compute the finish and mark it "(calc.)". Liquidated damages: amount and basis (e.g. "$500 per calendar day").
+- Never leave B5-B11 empty: write "Not stated in the documents" for anything not found, and list the source section for each value under KEY ASSUMPTIONS.
 
 ## 1. Gather inputs
 - Drawings (PDF plans, finish schedules, door/window/fixture schedules), spec book, bid form, addenda.
-- Read the bid form / scope of work to learn exactly what the contractor must install vs. what is by owner, by others, or alternates. Read every addendum and apply changes.
-- **Fill the project information block (A1 and rows 5-11) before any quantities.** This is required on every run. Search, in this order: the drawing cover sheet and title blocks (project name, owner, architect); spec 00 11 13 Advertisement / Invitation to Bid and 00 21 13 Instructions to Bidders (bid date and time); 00 41 00 Bid Form; 00 52 00 Agreement, 00 73 00 Supplementary Conditions and 01 10 00 Summary (start, substantial and final completion, contract time, liquidated damages); any project info sheet. Addenda override all of these, including changed bid dates. A1 = the full project name as written on the cover sheet (fall back to the job name). B5 Owner, B6 Architect, B7 bid date and time, B8 start date, B9 finish date, B10 duration (e.g. "180 calendar days"), B11 liquidated damages (e.g. "$500 per calendar day"). Write "Not stated in the documents" for anything that isn't there; never leave B5-B11 empty. List each source sheet or section in KEY ASSUMPTIONS.
+- The template file `Estimating Template.xlsx` from the Current Bids root (it carries the Daskal logo). If it can't be reached, ask for it. If the user can't supply it, rebuild the layout in section 3 exactly and leave the logo slot (B1) empty, and say so.
+- Read the bid form / scope of work to learn exactly what Daskal must install vs. what is by owner, by others, or alternates. Read every addendum and apply changes.
 
 ## 2. Do the takeoff
 - Go sheet by sheet through the drawings; read schedules and keynotes, not just plan graphics. Use the drawing scale to measure (LF, SF, SY, CY, EA, LS, etc.).
@@ -174,12 +181,12 @@ Besides Summary, the workbook gets **one tab per trade**, each with its own take
 
 ## 3. Template layout (sheet "Summary" plus the trade tabs described in section 2, each with drawing renderings; Arial 10, thin borders)
 Header block:
-- A1 project name (Arial 16 bold, row height 62); company logo anchored at B1 (~200x200 px) when provided; C1 the company slogan (Arial 14 bold, color 1F4E9E).
+- A1 project name (Arial 16 bold, row height 62); Daskal logo image anchored at B1 (~200x200 px); C1 "BUILDING FOR A SOLID FUTURE" (Arial 14 bold, color 1F4E9E).
 - Row 4 header: A "Item", B "Info" — bold white text on fill 1F3864, centered.
 - Rows 5-11: Owner, Architect, Bid date / time, Start date, Finish date, Duration, Liquidated damages (labels bold in A, values in B). Fill from the bid documents.
 
 Estimate table header, row 13 (height 42, bold white on 1F3864, centered):
-A Item | B Spec / tag | C Net qty | D Qty incl. waste | E Unit | F Price Each | G Cost Item | H Mark up % | I Mark up Value | J (spacer, width 2) | K Total Value | L Price basis
+A Item | B Spec / tag | C Net qty | D Qty incl. waste | E Unit | F Price Each | G Cost Item | H Mark up % | I Mark up Value | J (spacer, width 2) | K Total Value | L Price basis (past Daskal bids)
 
 Column widths: A 95.7, B 106.6, C 12, D 15, E 7, F 12, G 14, H 11, I 14, J 2, K 36.1, L 132.6.
 
@@ -202,13 +209,13 @@ Below the grand total, add an **ALTERNATES – NOT IN BASE BID** block (shaded, 
 ## 4. Build method
 - Copy the template (never edit the user's original). Load with openpyxl, delete rows 14 to the end, then write the division blocks, totals, grand total and assumptions fresh, copying cell styles from the template's header/division/total rows. The logo at B1 stays because rows 1-13 are untouched. Then add the **Walls** sheet and link each Div 0908 line on Summary to its wall type's SF on Walls (e.g. `=Walls!E8`). Then add the **Flooring** sheet and link each floor type's material and labor lines on Summary to its SF on Flooring. Then add the **ACT** sheet and link each ceiling type's material and labor lines on Summary to its SF on ACT. Then add the **Paint** sheet (single Summary line), the **Plumbing** tab and the remaining trade tabs; link their Summary lines and insert the marked-up drawings on every trade tab.
 - Use real Excel formulas, not hard-coded results. Recalculate (LibreOffice headless) and check for #REF!/#VALUE! before delivering.
-- File name: `<Job name> - Buldee Estimate Template.xlsx`, saved in `/mnt/session/outputs/` (section 0).
+- File name: `<Project Name> - Takeoff.xlsx`. Save it into the project's `7. Estimating` folder on the user's computer (device_commit_files) and also send it in the chat. Never overwrite an existing file there; add a version number instead.
 
-## 4b. Proven working steps (from a practice run)
+## 4b. Proven working steps (from the Bridgewater-Raritan practice run)
 
 **A. Read the documents**
-1. Copy the job files and the template into `/workspace/work/` with short names (plans.pdf, specs.pdf, add1.pdf, template.xlsx).
-2. Read any project info sheet or the bid form for owner, bid date, LDs, duration, bonds; fill rows 5–11.
+1. Copy plans, specs, addenda, `Project Info.docx` and `Estimating Template.xlsx` into a work folder with short names (plans.pdf, specs.pdf, add1.pdf, info.docx, template.xlsx).
+2. Read `Project Info.docx` (python-docx) for owner, bid date, LDs, duration, bonds; fill rows 5–11.
 3. Extract text with `pdftotext -layout` for the whole set and one file per page.
 4. **Map every PDF page to its sheet number** from the drawing list on the title sheet and each page's title block. MEP sheets often write numbers differently (`P2.0` vs `P.2.0`) – search both; if a page has no text, render it and read the title block.
 5. In the spec book read: Bid Form (00 41 00) for **alternates and unit prices**; 01 10 00 for scope, work by owner and owner-furnished items; the table of contents. Read every **addendum** in full, list which sheets it revises or adds, and use the addendum version of those sheets.
@@ -229,7 +236,7 @@ Below the grand total, add an **ALTERNATES – NOT IN BASE BID** block (shaded, 
 14. Load the template, capture the styles of rows 13, 14, 15 and 68, then delete rows 14 to the end.
 15. Build the trade tabs first (hard inputs blue, formulas black; Qty incl. waste `=ROUNDUP(D*(1+E),0)`).
 16. Then write Summary: Net qty `='<Tab>'!D<row>`, Qty incl. waste `='<Tab>'!F<row>` (always quote sheet names). Division totals `=SUM(G{hdr}:INDEX(G:G,ROW()-1))`; grand total = sum of division total cells; alternates block below it, excluded.
-17. Recalculate (LibreOffice headless if available; keep the embedded images); confirm zero errors and check the image count with `unzip -l file.xlsx | grep -c media`.
+17. Run `recalc.py` (it keeps the embedded images); confirm zero errors and check the image count with `unzip -l file.xlsx | grep -c media`.
 18. Read back with `data_only=True` and check: floor-type SF = scheduled room SF; ceiling SF by type = room SF; paint codes sum to the paint total; Summary lines equal their tab values.
 
 **E. Key Assumptions must include** scope (rooms in/out), addenda applied, scaled quantities and their accuracy, typical-room assumptions, items not quantified on drawings (carried LS), the electrical count summary, plumbing assumptions (sizes/insulation not legible), waste factors, and the RFI list (sheet conflicts, missing legends, missing trade drawings).

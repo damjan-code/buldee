@@ -61,7 +61,7 @@ export async function POST(req: Request): Promise<Response> {
         type: "user.message",
         content: [{
           type: "text",
-          text: `Run the buldee-takeoff skill for the job "${job}". The job files are in /mnt/session/uploads/job/. ` +
+          text: `Run the daskal-takeoff skill for the job "${job}". The job files are in /mnt/session/uploads/job/. ` +
             `Save the result as /mnt/session/outputs/${job} - Buldee Estimate Template.xlsx.`,
         }],
       },
