@@ -514,7 +514,7 @@ const SKILLS = [
   {id:"estimate", name:"Bid estimate", what:"Prices the takeoff on the same Buldee Estimate Template, from sub quotes and market prices.",
    needs:[["takeoff","Takeoff"]], ask:"Markup % to use?",
    out:["Summary"],
-   steps:["Load takeoff","Ask: markup %","Find prices in past bids (last 2 years, NJ)","Fill price and price basis per line","Compare cost per SF with past bids"]},
+   steps:["Load takeoff","Ask: markup %","Find prices: your sub quotes first, then current market prices","Fill price and price basis per line","Check cost per SF"]},
   {id:"scheduling", name:"Construction schedule", what:"CPM Gantt with critical path, submittals, lead times, RFI and CO forms.",
    needs:[["drawings","Drawings"],["specs","Specs"],["takeoff","Takeoff",true]], alt:"schedule",
    out:["Schedule","Submittals"],
@@ -642,9 +642,24 @@ function updateRunBar(){
 }
 
 const sleep = ms => new Promise(r=>setTimeout(r,ms));
+/* Estimate asks for the markup % before it runs (the estimate skill uses it on every line except plumbing) */
+function askMarkup(){
+  return new Promise(res=>{
+    const log=$("#log"); log.innerHTML="";
+    let last=15; try{ last=Number(localStorage.getItem("buldee-markup"))||15; }catch(e){}
+    const box=document.createElement("div"); box.className="job-run";
+    box.innerHTML=`<h4><span>Bid estimate <code class="skilltag">/estimate</code></span></h4><p class="sub" style="margin:4px 0 10px">Markup % to put on every line (plumbing carries none, as in your estimate skill).</p><form id="mkForm" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><label style="display:flex;gap:6px;align-items:center">Markup <input id="mkPct" type="number" min="0" max="100" step="0.5" value="${last}" style="width:80px"> %</label><button class="primary" type="submit">Run estimate</button><button type="button" id="mkCancel">Cancel</button></form>`;
+    log.appendChild(box); const inp=box.querySelector("#mkPct"); inp.focus(); inp.select();
+    box.querySelector("#mkForm").onsubmit=e=>{ e.preventDefault(); const v=Math.max(0,Math.min(100,Number(inp.value))); if(isNaN(v)) return; try{ localStorage.setItem("buldee-markup",String(v)); }catch(e){} box.remove(); res(v); };
+    box.querySelector("#mkCancel").onclick=()=>{ box.remove(); res(null); };
+  });
+}
 async function run(){
   const job = $("#jobName").value.replace(/^\d{2}-\d{2}-\d{4}\s*/,"") || "Job";
-  if(!isSample && picked.has("daskal-takeoff") && files.length && files.every(f=>FILEMAP.has(f.name)) && await liveReady()) return runLive(job);
+  let markup=null;
+  if(picked.has("estimate")){ markup=await askMarkup(); if(markup===null) return; }
+  const tool=picked.has("estimate")?"estimate":picked.has("daskal-takeoff")?"takeoff":null;
+  if(!isSample && tool && files.length && files.every(f=>FILEMAP.has(f.name)) && (await liveReady())[tool]) return runLive(job,tool,markup);
   const log = $("#log"); log.innerHTML = "";
   $("#run").disabled = true;
   for (const s of SKILLS.filter(s=>picked.has(s.id))){
@@ -672,7 +687,7 @@ async function run(){
   const xf=document.createElement("div"); xf.className="xfile";
   xf.innerHTML=`<div class="xicon">XLSX</div><div class="xbody"><b>${esc(xname)}</b><span>One Excel file on the Buldee Estimate Template, ${new Set(ran.flatMap(s=>s.out)).size} tabs: ${esc([...new Set(ran.flatMap(s=>s.out))].join(", "))}${profile?` · ${esc(profile.name||"your")} letterhead on every tab`:""}</span></div><button class="primary dlx" type="button">Download</button>`;
   log.appendChild(xf);
-  const rec={job:$("#jobName").value, date:new Date().toISOString().slice(0,10), sample:isSample, ids:ran.map(s=>s.id), tools:ran.map(s=>s.name), outs:[xname], info};
+  const rec={job:$("#jobName").value, date:new Date().toISOString().slice(0,10), sample:isSample, ids:ran.map(s=>s.id), tools:ran.map(s=>s.name), outs:[xname], info, markup};
   xf.querySelector(".dlx").onclick=e=>downloadProject(rec,e.target);
   const saved=document.createElement("p"); saved.className="savednote"; saved.innerHTML='&#10003; Added to My projects with a Download button. <a href="#profile">Go to My projects</a>'; log.appendChild(saved);
   try{ const pr=JSON.parse(localStorage.getItem("buldee-projects")||"[]"); pr.unshift(rec); localStorage.setItem("buldee-projects",JSON.stringify(pr.slice(0,50))); }catch(e){}
@@ -960,7 +975,7 @@ async function readProjectInfo(list,onMsg){
 }
 const SAMPLE_INFO={owner:"Sample County Board of Education",architect:"Sample Architects, LLC",bid:"January 15, 2027, 2:00 PM",start:"March 1, 2027",finish:"August 27, 2027",duration:"180 calendar days",lds:"$500 per calendar day"};
 const INFO_KEYS=["owner","architect","bid","start","finish","duration","lds"];
-function btSummary(wb,p,job,mode,info){ /* mode: "blank" | "takeoff" | "priced" */
+function btSummary(wb,p,job,mode,info,markup){ /* mode: "blank" | "takeoff" | "priced" */
   const ws=wb.addWorksheet("Summary",{views:[{state:"frozen",ySplit:13}]});
   ws.columns=BT_W.map(w=>({width:w}));
   btTitle(wb,ws,p,mode==="blank"?"Buldee Estimate Template":mode==="priced"?"Estimate":"Quantity takeoff",job);
@@ -974,7 +989,7 @@ function btSummary(wb,p,job,mode,info){ /* mode: "blank" | "takeoff" | "priced" 
     (mode==="blank"?[]:(BT_SAMPLE[no]||[])).forEach(([it,tag,q,w,u,price,link])=>{
       const row=ws.getRow(r); row.getCell(1).value=it; row.getCell(2).value=tag;
       row.getCell(3).value=q; row.getCell(4).value={formula:w?`C${r}*(1+${w})`:`C${r}`}; row.getCell(5).value=u;
-      if(mode==="priced"){ row.getCell(6).value=price; row.getCell(8).value=no==="01"?0:0.15; row.getCell(12).value="Sample unit price - confirm with sub quotes"; }
+      if(mode==="priced"){ row.getCell(6).value=price; row.getCell(8).value=(no==="01"||no==="22")?0:((markup==null?15:markup)/100); row.getCell(12).value="Sample unit price - confirm with sub quotes"; }
       row.getCell(7).value={formula:`D${r}*F${r}`}; row.getCell(9).value={formula:`G${r}*H${r}`}; row.getCell(11).value={formula:`G${r}+I${r}`};
       btStyleRow(row,1,12,{}); row.getCell(3).numFmt="#,##0"; row.getCell(4).numFmt="#,##0"; [6,7,9,11].forEach(c=>row.getCell(c).numFmt=BT_MONEY); row.getCell(8).numFmt="0%";
       if(link) row.getCell(2).note=`Quantity from the ${link} tab`;
@@ -1030,7 +1045,7 @@ async function buildWorkbook(rec){
   const wb=new ExcelJS.Workbook(); wb.creator="Buldee"; const job=(rec.info&&rec.info.name)||rec.job||"Job"; const ids=rec.ids||[];
   const tabs=SKILLS.filter(s=>ids.includes(s.id)).flatMap(s=>s.out);
   const hasT=ids.includes("daskal-takeoff"), hasE=ids.includes("estimate");
-  if(hasT||hasE||!tabs.length) btSummary(wb,profile,job,hasE?"priced":"takeoff",rec.sample?SAMPLE_INFO:rec.info);
+  if(hasT||hasE||!tabs.length) btSummary(wb,profile,job,hasE?"priced":"takeoff",rec.sample?SAMPLE_INFO:rec.info,rec.markup);
   tabs.forEach(t=>{ const b=BT_TABS[t]; if(b) b(wb,profile,job); });
   return await wb.xlsx.writeBuffer();
 }
@@ -1054,7 +1069,7 @@ $("#pvTplBlank").onclick=e=>saveXlsx("Buldee Estimate Template.xlsx",buildBlankT
 const FILEMAP=new Map();
 function keepFiles(list){ list.forEach(f=>{ if(f&&f.name&&typeof f.size==="number") FILEMAP.set(f.name,f); }); return list; }
 let liveP=null;
-function liveReady(){ if(!liveP) liveP=fetch("/api/runs",{cache:"no-store"}).then(r=>r.ok?r.json():null).then(d=>!!(d&&d.ready)).catch(()=>false); return liveP; }
+function liveReady(){ if(!liveP) liveP=fetch("/api/runs",{cache:"no-store"}).then(r=>r.ok?r.json():null).then(d=>({takeoff:!!(d&&d.ready),estimate:!!(d&&d.estimate)})).catch(()=>({takeoff:false,estimate:false})); return liveP; }
 function codeHeader(){ let c=""; try{ c=localStorage.getItem("buldee-code")||""; }catch(e){} return c?{"x-buldee-code":c}:{}; }
 async function liveFetch(url,opts){
   for(let i=0;i<2;i++){
@@ -1069,11 +1084,12 @@ async function liveFetch(url,opts){
 function saveProjects(fn){ let pr=[]; try{ pr=JSON.parse(localStorage.getItem("buldee-projects")||"[]"); }catch(e){} fn(pr); try{ localStorage.setItem("buldee-projects",JSON.stringify(pr.slice(0,50))); }catch(e){} return pr; }
 function updateRun(runId,patch){ saveProjects(pr=>{ const x=pr.find(p=>p.runId===runId); if(x) Object.assign(x,patch); }); if(view==="profile") fillProfile(); }
 
-async function runLive(job){
+async function runLive(job,tool,markup){
+  tool=tool||"takeoff"; const est=tool==="estimate";
   const log=$("#log"); log.innerHTML=""; $("#run").disabled=true;
-  const s=SKILLS.find(k=>k.id==="daskal-takeoff");
+  const s=SKILLS.find(k=>k.id===(est?"estimate":"daskal-takeoff"));
   const card=document.createElement("div"); card.className="job-run";
-  card.innerHTML=`<h4><span>${s.name} <code class="skilltag">/daskal-takeoff</code></span><span class="pill next">Running</span></h4><ul class="steps"><li class="active">Uploading ${files.length} file${files.length>1?"s":""}</li><li>Running the takeoff on Anthropic (often 20 to 60 minutes)</li><li>Saving the Excel file on the Buldee Estimate Template</li></ul><p class="sub" id="liveMsg" style="margin:8px 0 0"></p>`;
+  card.innerHTML=`<h4><span>${s.name} <code class="skilltag">${est?"/estimate":"/daskal-takeoff"}</code></span><span class="pill next">Running</span></h4><ul class="steps"><li class="active">Uploading ${files.length} file${files.length>1?"s":""}</li><li>${est?`Pricing the job at ${markup}% markup (runs the takeoff first if you didn't upload one; often 30 to 90 minutes)`:"Running the takeoff on Anthropic (often 20 to 60 minutes)"}</li><li>Saving the Excel file on the Buldee Estimate Template</li></ul><p class="sub" id="liveMsg" style="margin:8px 0 0"></p>`;
   log.appendChild(card);
   const lis=card.querySelectorAll("li"), pill=card.querySelector(".pill"), msg=card.querySelector("#liveMsg");
   const fail=t=>{ pill.className="pill off"; pill.textContent="Stopped"; msg.textContent=t; $("#run").disabled=false; };
@@ -1090,10 +1106,10 @@ async function runLive(job){
   }catch(e){ return fail("Upload failed: "+(e&&e.message||e)+". Check the access code and try again."); }
   lis[0].className="done"; lis[1].className="active"; msg.textContent="Starting the run…";
   const company=profile?{name:profile.name,slogan:profile.slogan,addr:profile.addr,tel:profile.tel,fax:profile.fax,email:profile.email,web:profile.web,logo:(profile.logo&&profile.logo.length<1500000)?profile.logo:null}:null;
-  let r; try{ r=await liveFetch("/api/runs",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({job,files:blobs,company})}); }catch(e){ return fail("Couldn't reach Buldee. Check your connection."); }
+  let r; try{ r=await liveFetch("/api/runs",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({job,files:blobs,company,tool,markup})}); }catch(e){ return fail("Couldn't reach Buldee. Check your connection."); }
   if(!r.ok){ const d=await r.json().catch(()=>({})); return fail(d.error==="access_code"?"That access code didn't work.":"The run couldn't start ("+(d.error||r.status)+")."); }
   const {runId}=await r.json();
-  const rec={job:$("#jobName").value,date:new Date().toISOString().slice(0,10),sample:false,ids:["daskal-takeoff"],tools:[s.name],outs:[xname],live:true,runId,status:"running"};
+  const rec={job:$("#jobName").value,date:new Date().toISOString().slice(0,10),sample:false,ids:[est?"estimate":"daskal-takeoff"],markup,tools:[s.name],outs:[xname],live:true,runId,status:"running"};
   saveProjects(pr=>pr.unshift(rec));
   if(!demoUsed){ demoUsed=true; try{localStorage.setItem("buldee-demo-used","1");}catch(e){} }
   updateBadge();
@@ -1102,7 +1118,7 @@ async function runLive(job){
     lis[1].className="done"; lis[2].className="done"; pill.className="pill rec"; pill.textContent="Done";
     msg.textContent="";
     const xf=document.createElement("div"); xf.className="xfile";
-    xf.innerHTML=`<div class="xicon">XLSX</div><div class="xbody"><b>${esc(xname)}</b><span>Takeoff on the Buldee Estimate Template</span></div><button class="primary dlx" type="button">Download</button>`;
+    xf.innerHTML=`<div class="xicon">XLSX</div><div class="xbody"><b>${esc(xname)}</b><span>${est?"Priced estimate":"Takeoff"} on the Buldee Estimate Template</span></div><button class="primary dlx" type="button">Download</button>`;
     log.appendChild(xf); xf.querySelector(".dlx").onclick=e=>downloadProject(x,e.target);
     const saved=document.createElement("p"); saved.className="savednote"; saved.innerHTML='&#10003; Added to My projects with a Download button. <a href="#profile">Go to My projects</a>'; log.appendChild(saved);
     $("#run").disabled=false;

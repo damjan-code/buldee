@@ -1,23 +1,24 @@
-// POST /api/runs - start a Take Off run.
-// Body: { job, files: [{url, name}], company?: {name, slogan, addr, tel, email, web, logo?} }
+// POST /api/runs - start a Take Off or Estimate run.
+// Body: { job, files: [{url, name}], company?: {name, slogan, addr, tel, email, web, logo?}, tool?: "takeoff" | "estimate", markup?: number }
 // The files were uploaded to Vercel Blob by the browser (see api/upload.ts).
 import { toFile } from "@anthropic-ai/sdk";
 import { del } from "@vercel/blob";
 import {
-  AGENT_ID, ENVIRONMENT_ID, MAX_FILES, RUN_BUDGET_CENTS,
+  AGENT_ID, ESTIMATE_AGENT_ID, ENVIRONMENT_ID, MAX_FILES, RUN_BUDGET_CENTS,
   checkAccess, client, configured, json,
 } from "../lib/anthropic.js";
 
 type Company = { name?: string; slogan?: string; addr?: string; tel?: string; fax?: string; email?: string; web?: string; logo?: string | null };
-type Body = { job?: string; files?: { url: string; name: string }[]; company?: Company | null };
+type Body = { job?: string; files?: { url: string; name: string }[]; company?: Company | null; tool?: string; markup?: number };
 
 const safeName = (s: string) => s.replace(/[\\/:*?"<>|\u0000-\u001f]+/g, "_").slice(0, 120) || "file";
 
 export async function POST(req: Request): Promise<Response> {
-  const denied = checkAccess(req) ?? configured();
-  if (denied) return denied;
-
   const body = (await req.json().catch(() => ({}))) as Body;
+  const tool = body.tool === "estimate" ? "estimate" : "takeoff";
+  const denied = checkAccess(req) ?? configured(tool);
+  if (denied) return denied;
+  const markup = Math.min(100, Math.max(0, Number(body.markup ?? 15) || 0));
   const job = safeName((body.job ?? "").trim() || "Job");
   const files = (body.files ?? []).slice(0, MAX_FILES);
   if (!files.length) return json({ error: "no_files" }, 400);
@@ -51,9 +52,9 @@ export async function POST(req: Request): Promise<Response> {
   }
 
   const session = await client.beta.sessions.create({
-    agent: AGENT_ID,
+    agent: tool === "estimate" ? ESTIMATE_AGENT_ID : AGENT_ID,
     environment_id: ENVIRONMENT_ID,
-    title: `Take Off - ${job}`,
+    title: `${tool === "estimate" ? "Estimate" : "Take Off"} - ${job}`,
     resources,
     budget: { type: "limit", max_list_cost: { amount: RUN_BUDGET_CENTS, currency: "USD" } },
     initial_events: [
@@ -61,8 +62,12 @@ export async function POST(req: Request): Promise<Response> {
         type: "user.message",
         content: [{
           type: "text",
-          text: `Run the daskal-takeoff skill for the job "${job}". The job files are in /mnt/session/uploads/job/. ` +
-            `Save the result as /mnt/session/outputs/${job} - Buldee Estimate Template.xlsx.`,
+          text: tool === "estimate"
+            ? `Run the estimate skill for the job "${job}" with a markup of ${markup}%. The job files are in /mnt/session/uploads/job/. ` +
+              `If they include a takeoff (.xlsx), price it; otherwise run the daskal-takeoff skill first, then price it. ` +
+              `Save the result as /mnt/session/outputs/${job} - Buldee Estimate Template.xlsx.`
+            : `Run the daskal-takeoff skill for the job "${job}". The job files are in /mnt/session/uploads/job/. ` +
+              `Save the result as /mnt/session/outputs/${job} - Buldee Estimate Template.xlsx.`,
         }],
       },
     ],
@@ -73,5 +78,5 @@ export async function POST(req: Request): Promise<Response> {
 
 // GET /api/runs - lets the page know whether live runs are switched on.
 export async function GET(): Promise<Response> {
-  return json({ ready: configured() === null });
+  return json({ ready: configured("takeoff") === null, estimate: configured("estimate") === null });
 }
