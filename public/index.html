@@ -662,11 +662,17 @@ async function run(){
     out.innerHTML = "<span>Tabs: "+s.out.map(esc).join(", ")+"</span>" + (profile?`<span>Branded: ${esc(profile.name||"your company")} letterhead</span>`:"");
     card.appendChild(out);
   }
+  let info=null;
+  if(!isSample && (picked.has("daskal-takeoff")||picked.has("estimate"))){
+    const note=document.createElement("p"); note.className="sub"; note.textContent="Reading project information from your files…"; log.appendChild(note);
+    info=await readProjectInfo(files,n=>{ note.textContent="Reading project information from "+n+"…"; });
+    const n=INFO_KEYS.filter(k=>info[k]).length; note.textContent=n?`Found ${n} of 7 project info items (owner, architect, bid date and so on) in your files.`:"No project info (owner, architect, bid date) found in your files.";
+  }
   const ran=SKILLS.filter(s=>picked.has(s.id)); const xname=`${job} - Buldee Estimate Template.xlsx`;
   const xf=document.createElement("div"); xf.className="xfile";
   xf.innerHTML=`<div class="xicon">XLSX</div><div class="xbody"><b>${esc(xname)}</b><span>One Excel file on the Buldee Estimate Template, ${new Set(ran.flatMap(s=>s.out)).size} tabs: ${esc([...new Set(ran.flatMap(s=>s.out))].join(", "))}${profile?` · ${esc(profile.name||"your")} letterhead on every tab`:""}</span></div><button class="primary dlx" type="button">Download</button>`;
   log.appendChild(xf);
-  const rec={job:$("#jobName").value, date:new Date().toISOString().slice(0,10), sample:isSample, ids:ran.map(s=>s.id), tools:ran.map(s=>s.name), outs:[xname]};
+  const rec={job:$("#jobName").value, date:new Date().toISOString().slice(0,10), sample:isSample, ids:ran.map(s=>s.id), tools:ran.map(s=>s.name), outs:[xname], info};
   xf.querySelector(".dlx").onclick=e=>downloadProject(rec,e.target);
   const saved=document.createElement("p"); saved.className="savednote"; saved.innerHTML='&#10003; Added to My projects with a Download button. <a href="#profile">Go to My projects</a>'; log.appendChild(saved);
   try{ const pr=JSON.parse(localStorage.getItem("buldee-projects")||"[]"); pr.unshift(rec); localStorage.setItem("buldee-projects",JSON.stringify(pr.slice(0,50))); }catch(e){}
@@ -902,13 +908,44 @@ function btTitle(wb,ws,p,title,job){
   const line=[p&&p.name,p&&p.addr,p&&p.tel&&"Tel "+p.tel,p&&p.email,p&&p.web].filter(Boolean).join("  ·  ");
   const s=ws.getCell("A2"); s.value=(title?title+(line?"  ·  ":""):"")+line; s.font={name:"Arial",size:9,color:{argb:"FF555555"}};
 }
-function btSummary(wb,p,job,mode){ /* mode: "blank" | "takeoff" | "priced" */
+/* Reads project info (owner, architect, bid date, duration, LDs) from the uploaded PDFs' text, in the browser */
+let pdfP=null;
+function loadPdfJs(){ if(!pdfP) pdfP=new Promise((res,rej)=>{ if(window.pdfjsLib) return res(window.pdfjsLib); const sc=document.createElement("script"); sc.src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"; sc.onload=()=>{ window.pdfjsLib.GlobalWorkerOptions.workerSrc="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js"; res(window.pdfjsLib); }; sc.onerror=rej; document.head.appendChild(sc); }); return pdfP; }
+async function pdfText(file,maxPages){
+  const lib=await loadPdfJs(); const doc=await lib.getDocument({data:new Uint8Array(await file.arrayBuffer())}).promise; let out="";
+  for(let i=1;i<=Math.min(doc.numPages,maxPages);i++){ const tc=await (await doc.getPage(i)).getTextContent(); out+=tc.items.map(t=>t.str+(t.hasEOL?"\n":" ")).join("")+"\n"; }
+  doc.destroy(); return out;
+}
+const MONTHS="(?:January|February|March|April|May|June|July|August|September|October|November|December|Jan\\.?|Feb\\.?|Mar\\.?|Apr\\.?|Jun\\.?|Jul\\.?|Aug\\.?|Sept?\\.?|Oct\\.?|Nov\\.?|Dec\\.?)";
+function clean(v){ return v?v.replace(/\s+/g," ").replace(/^[\s:\-–]+|[\s,;:\-–]+$/g,"").slice(0,90):""; }
+function findInfo(text){
+  const T=text.replace(/[ \t]+/g," "), info={};
+  const party=(label)=>{ const re=new RegExp("\\b"+label+"\\b\\s*[:\\-–]?\\s*\\n?\\s*([A-Z0-9][^\\n]{2,80})","gi"); let m;
+    while((m=re.exec(T))){ const v=clean(m[1]); if(v.length>2&&!/^(?:s\b|'s|furnished|provided|shall|and\b|or\b|to\b|of\b|will|may|has|is\b|reserves|supplied|install|approval|representative|agreement|contract)/i.test(v)) return v; } return ""; };
+  info.owner=party("OWNER"); info.architect=party("ARCHITECTS?");
+  let m=T.match(new RegExp("(?:bids?|proposals?)[^\\n]{0,80}?(?:due|received|opened|opening|date)[^\\n]{0,60}?("+MONTHS+"\\s+\\d{1,2},?\\s+\\d{4}(?:[^\\n]{0,8}?\\d{1,2}(?::\\d{2})?\\s*[AP]\\.?M\\.?)?)","i"))||T.match(new RegExp("(?:bid date|bids? due)[^\\n]{0,20}?(\\d{1,2}/\\d{1,2}/\\d{2,4}(?:[^\\n]{0,8}?\\d{1,2}(?::\\d{2})?\\s*[AP]\\.?M\\.?)?)","i"));
+  info.bid=m?clean(m[1]):"";
+  if(m&&!/[AP]\.?M/i.test(info.bid)){ const t=m[0].match(/\b(\d{1,2}(?::\d{2})?\s*[AP]\.?M\.?)/i); if(t) info.bid+=", "+t[1].replace(/\s+/g," "); }
+  m=T.match(/(?:start|commence|commencement|notice to proceed)[^\n]{0,60}?((?:January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{1,2},?\s+\d{4})/i); info.start=m?clean(m[1]):"";
+  m=T.match(/(?:substantial(?:ly)? complet\w*|final complet\w*|finish\w*)[^\n]{0,60}?((?:January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{1,2},?\s+\d{4})/i); info.finish=m?clean(m[1]):"";
+  m=T.match(/(\d{2,4})\s*(?:\(\d+\)\s*)?(?:consecutive\s+)?calendar\s+days/i); info.duration=m?m[1]+" calendar days":"";
+  m=T.match(/liquidated damages[^$]{0,160}?(\$\s?[\d,]+(?:\.\d{2})?(?:\s*(?:per|\/|for each)\s*(?:calendar\s+)?day)?)/i); info.lds=m?clean(m[1]):"";
+  return info;
+}
+async function readProjectInfo(list,onMsg){
+  const info={}; const pdfs=list.map(f=>FILEMAP.get(f.name)).filter(f=>f&&/\.pdf$/i.test(f.name));
+  for(const f of pdfs){ try{ onMsg&&onMsg(f.name); const got=findInfo(await pdfText(f,25)); for(const k in got) if(got[k]&&!info[k]) info[k]=got[k]; }catch(e){} }
+  return info;
+}
+const SAMPLE_INFO={owner:"Sample County Board of Education",architect:"Sample Architects, LLC",bid:"January 15, 2027, 2:00 PM",start:"March 1, 2027",finish:"August 27, 2027",duration:"180 calendar days",lds:"$500 per calendar day"};
+const INFO_KEYS=["owner","architect","bid","start","finish","duration","lds"];
+function btSummary(wb,p,job,mode,info){ /* mode: "blank" | "takeoff" | "priced" */
   const ws=wb.addWorksheet("Summary",{views:[{state:"frozen",ySplit:13}]});
   ws.columns=BT_W.map(w=>({width:w}));
   btTitle(wb,ws,p,mode==="blank"?"Buldee Estimate Template":mode==="priced"?"Estimate":"Quantity takeoff",job);
   btHeadRow(ws,4,["Item","Info"]); ws.getRow(4).height=15;
   BT_INFO.forEach((t,i)=>{ const row=ws.getRow(5+i); row.getCell(1).value=t; btStyleRow(row,1,2,{}); row.getCell(1).font={name:"Arial",size:10,bold:true}; });
-  if(mode!=="blank"){ ws.getCell("B5").value="(from Project Info)"; ws.getCell("B7").value="(from bid form)"; }
+  if(mode!=="blank") INFO_KEYS.forEach((k,i)=>{ const c=ws.getCell("B"+(5+i)); const v=info&&info[k]; c.value=v||"Not found in the uploaded files"; c.font=v?{name:"Arial",size:10}:{name:"Arial",size:10,italic:true,color:{argb:"FF8A94A6"}}; });
   btHeadRow(ws,13,BT_HEAD); ws.getRow(13).height=42;
   let r=14; const totals=[]; let bondRow=0;
   BT_DIVS.forEach(([no,name])=>{
@@ -972,7 +1009,7 @@ async function buildWorkbook(rec){
   const wb=new ExcelJS.Workbook(); wb.creator="Buldee"; const job=rec.job||"Job"; const ids=rec.ids||[];
   const tabs=SKILLS.filter(s=>ids.includes(s.id)).flatMap(s=>s.out);
   const hasT=ids.includes("daskal-takeoff"), hasE=ids.includes("estimate");
-  if(hasT||hasE||!tabs.length) btSummary(wb,profile,job,hasE?"priced":"takeoff");
+  if(hasT||hasE||!tabs.length) btSummary(wb,profile,job,hasE?"priced":"takeoff",rec.sample?SAMPLE_INFO:rec.info);
   tabs.forEach(t=>{ const b=BT_TABS[t]; if(b) b(wb,profile,job); });
   return await wb.xlsx.writeBuffer();
 }
