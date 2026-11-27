@@ -11,5 +11,5 @@ Upload a construction job's files and Buldee runs the right tool on them (Take O
 ## How a Take Off run works
 
 1. The browser uploads the job files (up to 4, 30 MB each) to Vercel Blob.
-2. `POST /api/runs` copies them into the Anthropic Files API, deletes the blobs, and starts a Managed Agents session with the `buldee-takeoff` skill and a $25 spend cap.
+2. `POST /api/runs` copies them into the Anthropic Files API, deletes the blobs, and starts a Managed Agents session with the `daskal-takeoff` skill and a $25 spend cap.
 3. The page checks `/api/run-status` every 15 seconds. When the run finishes, the Excel file shows up in My projects and downloads through `/api/run-file`.
